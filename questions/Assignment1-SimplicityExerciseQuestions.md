@@ -11,7 +11,7 @@ See [Mastering Markdown](https://guides.github.com/features/mastering-markdown/)
 
 **3. Is there a meaningful difference in current between the answers for question 1 and 2? Please explain your answer, 
 referencing the [Mainboard Schematic](https://www.silabs.com/documents/public/schematic-files/WSTK-Main-BRD4001A-A01-schematic.pdf) and [AEM Accuracy](https://www.silabs.com/documents/login/user-guides/ug279-brd4104a-user-guide.pdf) section of the user's guide where appropriate. Extra credit is avilable for this question and depends on your answer.**
-   Answer: No. 
+   Answer: No. The AEM uses the current sense amplifies to measure the current signals. The gain stage amplifies to two different gain settings to obtain two current ranges. The variation between these two ranges is 250uA, so there's not much difference in the current measured.
 
 
 **4. With the WeakAlternateWeak drive strength setting, what is the average current for 1 complete on-off cycle for 1 LED with an on-off duty cycle of 50% (approximately 1 sec on, 1 sec off)?**
