@@ -1,6 +1,6 @@
 # ECEN5823-CourseProject-F22
 
-This repository contains the course project submissions for the ECEN 5823 IoT Embedded Firmware (Fall 2022) class for Group 14.
+This repository contains the course project submissions for the ECEN 5823 IoT Embedded Firmware (Fall 2022) class for Team 14.
 
 # Project Overview
 
