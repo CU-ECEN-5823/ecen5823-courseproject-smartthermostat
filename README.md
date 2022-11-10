@@ -8,5 +8,5 @@ This repository contains the course project submissions for the ECEN 5823 IoT Em
 
 # Team Members
 
-Ajay Kandagal
-Amey More
+1. Ajay Kandagal
+2. Amey More
