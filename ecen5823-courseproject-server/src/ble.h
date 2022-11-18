@@ -51,7 +51,7 @@ typedef struct {
 }ble_server_data_t;
 
 
-void init_ble();
+void ble_init();
 void handle_ble_event(sl_bt_msg_t *evt);
 ble_server_data_t* get_ble_data();
 

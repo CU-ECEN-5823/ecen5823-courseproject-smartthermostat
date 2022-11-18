@@ -31,7 +31,7 @@ ble_server_data_t ble_data;
  * @brief Initializes all the fields of ble_data
  *
  ******************************************************************************/
-void init_ble()
+void ble_init()
 {
   displayInit();
 
