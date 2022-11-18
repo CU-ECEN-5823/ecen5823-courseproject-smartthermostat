@@ -40,8 +40,6 @@
 // This also can work:
 //#define SERVER_BT_ADDRESS (bd_addr) { .addr = { 0x85, 0x61, 0x17, 0x57, 0x0b, 0x00 } }
 
-
-
 #if DEVICE_IS_BLE_SERVER
 
 #define BUILD_INCLUDES_BLE_SERVER 1
