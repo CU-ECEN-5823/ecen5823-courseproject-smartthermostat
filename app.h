@@ -31,7 +31,7 @@
  * Change: Added comment about use of .h files.
  *
  *
- *
+ * Student Name: Amey More, amey.more@colorado.edu
  ******************************************************************************/
 
 // Students: Remember, a header file (a .h file) generally defines an interface
@@ -43,6 +43,9 @@
 
 #ifndef APP_H
 #define APP_H
+#define LOWEST_ENERGY_MODE 2
+//#define LETIMER_ON_TIME_MS 80
+#define LETIMER_PERIOD_MS 3000
 
 /**************************************************************************//**
  * Application Init.

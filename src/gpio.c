@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "gpio.h"
+#include "timers.h"
 
 
 // Student Edit: Define these, 0's are placeholder values.
@@ -29,16 +30,8 @@
 // and GPIO documentation at https://siliconlabs.github.io/Gecko_SDK_Doc/efm32g/html/group__GPIO.html
 // to determine the correct values for these.
 
-#define LED0_port  gpioPortF // change to correct ports and pins
-#define LED0_pin   4
-#define LED1_port  gpioPortF
-#define LED1_pin   5
-
-
-
 // Set GPIO drive strengths and modes of operation
-void gpioInit()
-{
+void gpioInit(){
 
   // Student Edit:
 
@@ -50,36 +43,43 @@ void gpioInit()
 	GPIO_DriveStrengthSet(LED1_port, gpioDriveStrengthWeakAlternateWeak);
 	GPIO_PinModeSet(LED1_port, LED1_pin, gpioModePushPull, false);
 
+	GPIO_PinModeSet(PB0_port, PB0_pin, gpioModeInputPullFilter, true);
+	GPIO_ExtIntConfig (PB0_port, PB0_pin, PB0_pin, true, true, true);
 
+	GPIO_PinModeSet(PB1_port, PB1_pin, gpioModeInputPullFilter, true);
+	GPIO_ExtIntConfig (PB1_port, PB1_pin, PB1_pin, true, true, true);
 
 } // gpioInit()
 
 
-void gpioLed0SetOn()
-{
+void gpioLed0SetOn(){
 	GPIO_PinOutSet(LED0_port,LED0_pin);
 }
 
 
-void gpioLed0SetOff()
-{
+void gpioLed0SetOff(){
 	GPIO_PinOutClear(LED0_port,LED0_pin);
 }
 
 
-void gpioLed1SetOn()
-{
+void gpioLed1SetOn(){
 	GPIO_PinOutSet(LED1_port,LED1_pin);
 }
 
 
-void gpioLed1SetOff()
-{
+void gpioLed1SetOff(){
 	GPIO_PinOutClear(LED1_port,LED1_pin);
 }
 
+void gpioSensorEnSetOn() {
+  GPIO_PinOutSet(SENSOR_ENABLE_port,SENSOR_ENABLE_pin);
+}
 
-
-
-
-
+void gpioSetDisplayExtcomin(bool value) {
+  if(value == true) {
+      GPIO_PinOutSet(EXTCOMIN_port,EXTCOMIN_pin);
+  }
+  else {
+      GPIO_PinOutClear(EXTCOMIN_port,EXTCOMIN_pin);
+  }
+}

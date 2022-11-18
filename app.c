@@ -33,13 +33,15 @@
  *              It is to be used only for ECEN 5823 "IoT Embedded Firmware".
  *              The MSLA referenced above is in effect.
  *
+ *
+ * Student Name: Amey More, amey.more@colorado.edu
  ******************************************************************************/
 #include "em_common.h"
 #include "app_assert.h"
 #include "sl_bluetooth.h"
 #include "gatt_db.h"
 #include "app.h"
-
+#include <em_cmu.h>
 
 // *************************************************
 // Students: It is OK to modify this file.
@@ -48,10 +50,15 @@
 // *************************************************
 
 #include "sl_status.h"             // for sl_status_print()
-
 #include "src/ble_device_type.h"
 #include "src/gpio.h"
 #include "src/lcd.h"
+#include "src/oscillators.h"
+#include "src/timers.h"
+#include "src/irq.h"
+#include "src/scheduler.h"
+#include "src/i2c.h"
+#include "src/ble.h"
 
 
 // Students: Here is an example of how to correctly include logging functions in
@@ -64,8 +71,6 @@
 // Include logging specifically for this .c file
 #define INCLUDE_LOG_DEBUG 1
 #include "src/log.h"
-
-
 
 
 // *************************************************
@@ -87,8 +92,15 @@
 // Students: We'll need to modify this for A2 onward so that compile time we
 //           control what the lowest EM (energy mode) the MCU sleeps to. So
 //           think "#if (expression)".
+
+
+#if (LOWEST_ENERGY_MODE==0)
 #define APP_IS_OK_TO_SLEEP      (false)
-//#define APP_IS_OK_TO_SLEEP      (true)
+#endif
+
+#if (LOWEST_ENERGY_MODE>0 && LOWEST_ENERGY_MODE<4)
+#define APP_IS_OK_TO_SLEEP      (true)
+#endif
 
 
 // Return values for app_sleep_on_isr_exit():
@@ -153,7 +165,20 @@ SL_WEAK void app_init(void)
   // Don't call any Bluetooth API functions until after the boot event.
 
   // Student Edit: Add a call to gpioInit() here
+
+  if(LOWEST_ENERGY_MODE == 1) {
+      sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
+  }
+
+  if(LOWEST_ENERGY_MODE == 2) {
+      sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM2);
+  }
+
   gpioInit();
+  osc_init();
+  LETIMER0_init();
+  IRQ_Init();
+  i2c_init();
 
 } // app_init()
 
@@ -166,16 +191,16 @@ SL_WEAK void app_init(void)
  * comment out this function. Wait loops are a bad idea in general.
  * We'll discuss how to do this a better way in the next assignment.
  *****************************************************************************/
-static void delayApprox(int delay)
-{
-  volatile int i;
 
-  for (i = 0; i < delay; ) {
-      i=i+1;
-  }
-
-} // delayApprox()
-
+//static void delayApprox(int delay)
+//{
+//  volatile int i;
+//
+//  for (i = 0; i < delay; ) {
+//      i=i+1;
+//  }
+//
+//} // delayApprox()
 
 
 
@@ -191,15 +216,19 @@ SL_WEAK void app_process_action(void)
   //         We will create/use a scheme that is far more energy efficient in
   //         later assignments.
 
-  delayApprox(3500000);
+  //gpioLed0SetOn();
 
-  gpioLed0SetOn();
-  //gpioLed1SetOn();
+//  uint32_t evt;
+//
+//  evt = getNextEvent();
+//
+//  temperature_state_machine(evt);
 
-  delayApprox(3500000);
-
-  gpioLed0SetOff();
-  //gpioLed1SetOff();
+//  switch (evt) {
+//    case evtLETIMER0_UF:
+//      read_temp();
+//      break;
+//  }
 
 } // app_process_action()
 
@@ -219,19 +248,26 @@ SL_WEAK void app_process_action(void)
  *****************************************************************************/
 void sl_bt_on_event(sl_bt_msg_t *evt)
 {
-
   // Just a trick to hide a compiler warning about unused input parameter evt.
-  (void) evt;
+  // (void) evt;
 
   // For A5 onward:
   // Some events require responses from our application code,
   // and don’t necessarily advance our state machines.
   // For A5 uncomment the next 2 function calls
-  // handle_ble_event(evt); // put this code in ble.c/.h
+
+  handle_ble_event(evt); // put this code in ble.c/.h
 
   // sequence through states driven by events
-  // state_machine(evt);    // put this code in scheduler.c/.h
+/*
+  #if (DEVICE_IS_BLE_SERVER == 1)
+    temperature_state_machine(evt);    // put this code in scheduler.c/.h
+  #endif
 
+  #if (DEVICE_IS_BLE_SERVER == 0)
+    discover_state_machine(evt);    // put this code in scheduler.c/.h
+  #endif
+*/
 
 } // sl_bt_on_event()
 
