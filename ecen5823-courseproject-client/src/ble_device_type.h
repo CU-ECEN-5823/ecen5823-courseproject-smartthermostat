@@ -24,11 +24,16 @@
 #include <stdbool.h>
 
 /*
- * Students:
- * Set to 1 to configure this build as a BLE server.
+ * Set to 1 to configure as a BLE server
  * Set to 0 to configure as a BLE client
  */
 #define DEVICE_IS_BLE_SERVER 0
+
+/*
+ * Set to 1 to configure as a BLE client for Heater
+ * Set to 0 to configure as a BLE client for AC
+ */
+#define DEVICE_IS_HEATER 0
 
 // Students:
 // For your Bluetooth Client implementations, starting with A7,
@@ -47,7 +52,7 @@
 
 #define BUILD_INCLUDES_BLE_SERVER 1
 #define BUILD_INCLUDES_BLE_CLIENT 0
-#define BLE_DEVICE_TYPE_STRING "Server"
+//#define BLE_DEVICE_TYPE_STRING "Server"
 static inline bool IsServerDevice() { return true; }
 static inline bool IsClientDevice() { return false; }
 
@@ -55,7 +60,7 @@ static inline bool IsClientDevice() { return false; }
 
 #define BUILD_INCLUDES_BLE_SERVER 0
 #define BUILD_INCLUDES_BLE_CLIENT 1
-#define BLE_DEVICE_TYPE_STRING "Heater"
+//#define BLE_DEVICE_TYPE_STRING "Heater"
 static inline bool IsClientDevice() { return true; }
 static inline bool IsServerDevice() { return false; }
 
