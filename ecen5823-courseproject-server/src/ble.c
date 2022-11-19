@@ -41,10 +41,12 @@ void ble_init()
   ble_data.waiting_for_user_input = false;
   ble_data.automatic_temp_control = true;
   ble_data.ble_client_devices_count = 0;
-  ble_data.ble_client_ac.conn_state = UNKNOWN;
-  ble_data.ble_client_heater.conn_state = UNKNOWN;
+  ble_data.ble_client_ac.conn_state = CONN_STATE_UNKNOWN;
+  ble_data.ble_client_heater.conn_state = CONN_STATE_UNKNOWN;
   uint8_t ac_addr[] = {0x3f, 0x4a, 0xa6, 0x14, 0x2e, 0x84};
   memcpy(ble_data.ble_client_ac.addr.addr, ac_addr, 6);
+  uint8_t heater_addr[] = {0x49, 0x4a, 0xa6, 0x14, 0x2e, 0x84};
+  memcpy(ble_data.ble_client_heater.addr.addr, heater_addr, 6);
 }
 
 
@@ -60,57 +62,53 @@ void update_lcd()
 
   switch (ble_data.ble_client_ac.conn_state)
   {
-    case UNKNOWN:
-      strcat(ac_string, "UNKNOWN / ");
+    case CONN_STATE_UNKNOWN:
+      strcat(ac_string, "UNKNOWN");
       break;
-    case SCANNING:
-      strcat(ac_string, "SCANNING / ");
+    case CONN_STATE_SCANNING:
+      strcat(ac_string, "SCANNING");
       break;
-    case CONNECTED:
-      strcat(ac_string, "CONNECTED / ");
+    case CONN_STATE_CONNECTED:
+      strcat(ac_string, "CONNECTED");
       break;
-    case BONDING:
-      strcat(ac_string, "BONDING / ");
+    case CONN_STATE_BONDING:
+      strcat(ac_string, "BONDING");
       break;
-    case BONDED:
-      strcat(ac_string, "BONDED / ");
+    case CONN_STATE_BONDED:
+      if (ble_data.ble_client_ac.onoff_state)
+        strcat(ac_string, "ON");
+      else
+        strcat(ac_string, "OFF");
       break;
-    case DISCONNECTED:
-      strcat(ac_string, "DISCONNECTED / ");
+    case CONN_STATE_DISCONNECTED:
+      strcat(ac_string, "DISCONNECTED");
       break;
   }
 
   switch (ble_data.ble_client_heater.conn_state)
   {
-    case UNKNOWN:
-      strcat(heater_string, "UNKNOWN / ");
+    case CONN_STATE_UNKNOWN:
+      strcat(heater_string, "UNKNOWN");
       break;
-    case SCANNING:
-      strcat(heater_string, "SCANNING / ");
+    case CONN_STATE_SCANNING:
+      strcat(heater_string, "SCANNING");
       break;
-    case CONNECTED:
-      strcat(heater_string, "CONNECTED / ");
+    case CONN_STATE_CONNECTED:
+      strcat(heater_string, "CONNECTED");
       break;
-    case BONDING:
-      strcat(heater_string, "BONDING / ");
+    case CONN_STATE_BONDING:
+      strcat(heater_string, "BONDING");
       break;
-    case BONDED:
-      strcat(heater_string, "BONDED / ");
+    case CONN_STATE_BONDED:
+      if (ble_data.ble_client_heater.onoff_state)
+        strcat(heater_string, "ON");
+      else
+        strcat(heater_string, "OFF");
       break;
-    case DISCONNECTED:
-      strcat(heater_string, "DISCONNECTED / ");
+    case CONN_STATE_DISCONNECTED:
+      strcat(heater_string, "DISCONNECTED");
       break;
   }
-
-  if (ble_data.ble_client_ac.onoff_state)
-    strcat(ac_string, "ON");
-  else
-    strcat(ac_string, "OFF");
-
-  if (ble_data.ble_client_heater.onoff_state)
-    strcat(heater_string, "ON");
-  else
-    strcat(heater_string, "OFF");
 
   displayPrintf(DISPLAY_ROW_NAME, "Smart Thermostat");
   displayPrintf(DISPLAY_ROW_BTADDR2, heater_string);
@@ -160,8 +158,8 @@ void handle_bt_boot()
     LOG_ERROR("Failed to set bonding mode");
 
   status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
-  ble_data.ble_client_ac.conn_state = SCANNING;
-  ble_data.ble_client_heater.conn_state = SCANNING;
+  ble_data.ble_client_ac.conn_state = CONN_STATE_SCANNING;
+  ble_data.ble_client_heater.conn_state = CONN_STATE_SCANNING;
 
   if (status != SL_STATUS_OK)
     LOG_ERROR("Failed to start scanning");
@@ -186,7 +184,7 @@ void handle_bt_scanned()
   if (status != SL_STATUS_OK)
     LOG_ERROR("Failed to stop scanning");
 
-  if (ble_data.ble_client_ac.conn_state == UNKNOWN || ble_data.ble_client_ac.conn_state == SCANNING) {
+  if (ble_data.ble_client_ac.conn_state == CONN_STATE_UNKNOWN || ble_data.ble_client_ac.conn_state == CONN_STATE_SCANNING) {
       status = sl_bt_connection_open(ble_data.ble_client_ac.addr, \
                                      sl_bt_gap_public_address, \
                                      sl_bt_gap_1m_phy, \
@@ -195,7 +193,7 @@ void handle_bt_scanned()
       if (status != SL_STATUS_OK)
         LOG_ERROR("Failed to start connection with AC");
   }
-  else if (ble_data.ble_client_heater.conn_state == UNKNOWN || ble_data.ble_client_heater.conn_state == SCANNING) {
+  else if (ble_data.ble_client_heater.conn_state == CONN_STATE_UNKNOWN || ble_data.ble_client_heater.conn_state == CONN_STATE_SCANNING) {
       status = sl_bt_connection_open(ble_data.ble_client_heater.addr, \
                                      sl_bt_gap_public_address, \
                                      sl_bt_gap_1m_phy, \
@@ -204,10 +202,9 @@ void handle_bt_scanned()
       if (status != SL_STATUS_OK)
         LOG_ERROR("Failed to start connection with Heater");
   }
-
-#ifdef DEBUG
-  LOG_INFO("BLE Client: Trying to connect\n");
-#endif
+  else {
+      LOG_ERROR("Both clients are connected");
+  }
 }
 
 /******************************************************************************
@@ -222,24 +219,40 @@ void handle_bt_opened(sl_bt_msg_t *evt)
   sl_status_t status;
 
   if (!memcmp(evt->data.evt_connection_opened.address.addr, ble_data.ble_client_ac.addr.addr, 6)) {
-      ble_data.ble_client_ac.conn_state = CONNECTED;
+      ble_data.ble_client_ac.conn_state = CONN_STATE_CONNECTED;
       ble_data.ble_client_ac.conn_handle = evt->data.evt_connection_opened.connection;
 #ifdef DEBUG
       LOG_INFO("AC Connected\n");
 #endif
   }
-  else if (!memcmp(evt->data.evt_connection_opened.address.addr, ble_data.ble_client_ac.addr.addr, 6)) {
-      ble_data.ble_client_heater.conn_state = CONNECTED;
+  else if (!memcmp(evt->data.evt_connection_opened.address.addr, ble_data.ble_client_heater.addr.addr, 6)) {
+      ble_data.ble_client_heater.conn_state = CONN_STATE_CONNECTED;
       ble_data.ble_client_heater.conn_handle = evt->data.evt_connection_opened.connection;
 #ifdef DEBUG
       LOG_INFO("Heater Connected\n");
 #endif
   }
+  else {
+      LOG_INFO("Unknown Device");
+  }
 
-  status = sl_bt_sm_delete_bondings();
+  // If one of the client is not conncted then trigger scanning
+  if (ble_data.ble_client_heater.conn_state == CONN_STATE_SCANNING || ble_data.ble_client_ac.conn_state == CONN_STATE_SCANNING) {
+      status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_limited);
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to start scanning");
+  }
+  else {
+      LOG_INFO("Both clients are connected");
 
-  if (status != SL_STATUS_OK)
-    LOG_ERROR("Failed to delete bondings");
+      status = sl_bt_sm_delete_bondings();
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to delete bondings");
+
+      status = sl_bt_sm_increase_security(ble_data.ble_client_ac.conn_handle);
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to start bonding with AC");
+  }
 
   update_lcd();
 }
@@ -255,15 +268,15 @@ void handle_bt_opened(sl_bt_msg_t *evt)
 void handle_bt_closed(sl_bt_msg_t *evt)
 {
   if (evt->data.evt_connection_closed.connection == ble_data.ble_client_ac.conn_handle) {
-      ble_data.ble_client_ac.conn_state = DISCONNECTED;
+      ble_data.ble_client_ac.conn_state = CONN_STATE_SCANNING;
       ble_data.ble_client_ac.conn_handle = 0;
 
 #ifdef DEBUG
       LOG_INFO("AC Disconnected\n");
 #endif
   }
-  else if (evt->data.evt_connection_closed.connection == ble_data.ble_client_ac.conn_handle) {
-      ble_data.ble_client_heater.conn_state = DISCONNECTED;
+  else if (evt->data.evt_connection_closed.connection == ble_data.ble_client_heater.conn_handle) {
+      ble_data.ble_client_heater.conn_state = CONN_STATE_SCANNING;
       ble_data.ble_client_heater.conn_handle = 0;
 
 #ifdef DEBUG
@@ -272,9 +285,6 @@ void handle_bt_closed(sl_bt_msg_t *evt)
   }
 
   sl_status_t status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_limited);
-  ble_data.ble_client_ac.conn_state = SCANNING;
-  ble_data.ble_client_heater.conn_state = SCANNING;
-
   if (status != SL_STATUS_OK)
     LOG_ERROR("Failed to start BT scanning");
 
@@ -306,6 +316,78 @@ void handle_ble_event(sl_bt_msg_t *evt)
       break;
     case sl_bt_evt_system_soft_timer_id:
       displayUpdate();
+      break;
+
+    case sl_bt_evt_sm_bonded_id:
+      if (evt->data.evt_sm_bonding_failed.connection == ble_data.ble_client_ac.conn_handle) {
+          displayPrintf(DISPLAY_ROW_PASSKEY, "");
+          displayPrintf(DISPLAY_ROW_ACTION, "");
+          ble_data.ble_client_ac.conn_state = CONN_STATE_BONDED;
+
+          sl_status_t status = sl_bt_sm_increase_security(ble_data.ble_client_heater.conn_handle);
+          if (status != SL_STATUS_OK)
+            LOG_ERROR("Failed to start bonding with heater");
+      }
+      else if (evt->data.evt_sm_bonding_failed.connection == ble_data.ble_client_heater.conn_handle) {
+          displayPrintf(DISPLAY_ROW_PASSKEY, "");
+          displayPrintf(DISPLAY_ROW_ACTION, "");
+          ble_data.ble_client_heater.conn_state = CONN_STATE_BONDED;
+      }
+      else {
+          LOG_ERROR("Bonding failed: Unknown device");
+      }
+      update_lcd();
+      break;
+
+    case sl_bt_evt_sm_bonding_failed_id:
+      if (evt->data.evt_sm_bonding_failed.connection == ble_data.ble_client_ac.conn_handle) {
+          displayPrintf(DISPLAY_ROW_PASSKEY, "");
+          displayPrintf(DISPLAY_ROW_ACTION, "");
+          ble_data.ble_client_ac.conn_state = CONN_STATE_CONNECTED;
+      }
+      else if (evt->data.evt_sm_bonding_failed.connection == ble_data.ble_client_heater.conn_handle) {
+          displayPrintf(DISPLAY_ROW_PASSKEY, "");
+          displayPrintf(DISPLAY_ROW_ACTION, "");
+          ble_data.ble_client_heater.conn_state = CONN_STATE_CONNECTED;
+      }
+      else {
+          LOG_ERROR("Bonding failed: Unknown device");
+      }
+      update_lcd();
+      break;
+
+    case sl_bt_evt_sm_confirm_bonding_id:
+      if (evt->data.evt_sm_confirm_bonding.bonding_handle != SL_BT_INVALID_BONDING_HANDLE)
+        break;
+
+      if (evt->data.evt_sm_confirm_bonding.connection == ble_data.ble_client_ac.conn_handle) {
+          sl_bt_sm_bonding_confirm(ble_data.ble_client_ac.conn_handle, 1);
+          ble_data.ble_client_ac.conn_state = CONN_STATE_BONDING;
+      }
+      else if (evt->data.evt_sm_confirm_bonding.connection == ble_data.ble_client_heater.conn_handle) {
+          sl_bt_sm_bonding_confirm(ble_data.ble_client_heater.conn_handle, 1);
+          ble_data.ble_client_heater.conn_state = CONN_STATE_BONDING;
+      }
+      else {
+          LOG_ERROR("Confirm Bonding: Unknown device");
+      }
+      update_lcd();
+      break;
+
+    case sl_bt_evt_sm_confirm_passkey_id:
+      if (evt->data.evt_sm_confirm_passkey.connection == ble_data.ble_client_ac.conn_handle) {
+          displayPrintf(DISPLAY_ROW_PASSKEY, "AC Passkey %u", evt->data.evt_sm_confirm_passkey.passkey);
+          displayPrintf(DISPLAY_ROW_ACTION, "Confirm with PB0");
+          sl_bt_sm_passkey_confirm(ble_data.ble_client_ac.conn_handle, 1);
+      }
+      else if (evt->data.evt_sm_confirm_passkey.connection == ble_data.ble_client_heater.conn_handle) {
+          displayPrintf(DISPLAY_ROW_PASSKEY, "Heater Passkey %u", evt->data.evt_sm_confirm_passkey.passkey);
+          displayPrintf(DISPLAY_ROW_ACTION, "Confirm with PB0");
+          sl_bt_sm_passkey_confirm(ble_data.ble_client_heater.conn_handle, 1);
+      }
+      else {
+          LOG_ERROR("Confirm Bonding: Unknown device");
+      }
       break;
   } // end - switch
 } // handle_ble_event()
