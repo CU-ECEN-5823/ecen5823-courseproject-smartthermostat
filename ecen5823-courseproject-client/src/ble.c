@@ -82,7 +82,7 @@ void handle_bt_boot() {
   sl_status = sl_bt_advertiser_start(ble_client_data.advertisingHandle,
                                        sl_bt_advertiser_general_discoverable,
                                        sl_bt_advertiser_connectable_scannable
-                                      );
+                                    );
   if(sl_status == SL_STATUS_OK) {
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
   }
