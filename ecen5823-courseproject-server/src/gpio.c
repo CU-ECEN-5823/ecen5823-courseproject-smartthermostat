@@ -38,7 +38,6 @@
 #define EXTCOMIN_PORT gpioPortD
 #define EXTCOMIN_PIN 13
 
-
 // Set GPIO drive strengths and modes of operation
 void gpioInit()
 {
@@ -53,7 +52,18 @@ void gpioInit()
   GPIO_DriveStrengthSet(LED1_port, gpioDriveStrengthWeakAlternateWeak);
   GPIO_PinModeSet(LED1_port, LED1_pin, gpioModePushPull, false);
 
+  GPIO_PinModeSet(PB0_port, PB0_pin, gpioModeInputPullFilter, true);
+  GPIO_ExtIntConfig (PB0_port, PB0_pin, PB0_pin, true, true, true);
 
+  GPIO_PinModeSet(BUTTON_1_PORT, BUTTON_1_PIN, gpioModeInputPullFilter, true);
+  GPIO_PinModeSet(BUTTON_2_PORT, BUTTON_2_PIN, gpioModeInputPullFilter, true);
+  GPIO_PinModeSet(BUTTON_3_PORT, BUTTON_3_PIN, gpioModeInputPullFilter, true);
+  GPIO_PinModeSet(BUTTON_4_PORT, BUTTON_4_PIN, gpioModeInputPullFilter, true);
+
+  GPIO_ExtIntConfig(BUTTON_1_PORT, BUTTON_1_PIN, BUTTON_1_PIN, true, true, true);
+  GPIO_ExtIntConfig(BUTTON_2_PORT, BUTTON_2_PIN, BUTTON_2_PIN, true, true, true);
+  GPIO_ExtIntConfig(BUTTON_3_PORT, BUTTON_3_PIN, BUTTON_3_PIN, true, true, true);
+  GPIO_ExtIntConfig(BUTTON_4_PORT, BUTTON_4_PIN, BUTTON_4_PIN, true, true, true);
 
 } // gpioInit()
 

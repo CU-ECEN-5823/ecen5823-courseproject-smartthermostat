@@ -48,6 +48,7 @@
 #include "src/gpio.h"
 #include "src/lcd.h"
 #include "src/ble.h"
+#include "src/irq.h"
 
 // Include logging specifically for this .c file
 #define INCLUDE_LOG_DEBUG 1
@@ -126,6 +127,7 @@ SL_WEAK void app_init(void)
 {
   gpioInit();
   ble_init();
+  IRQ_Init();
 } // app_init()
 
 
@@ -151,7 +153,6 @@ SL_WEAK void app_process_action(void)
 void sl_bt_on_event(sl_bt_msg_t *evt)
 {
 
-  handle_ble_event(evt); // put this code in ble.c/.h
+  handle_ble_event(evt);
 
 } // sl_bt_on_event()
-
