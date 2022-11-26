@@ -56,6 +56,37 @@ void ble_init()
 }
 
 
+ble_client_data_t* get_client_by_addr(bd_addr addr)
+{
+  for (int i = 0; i < CLIENTS_NUM; i++) {
+      if (!memcmp(addr.addr, ble_server_data.ble_clients[i].addr.addr, 6)) {
+          return &ble_server_data.ble_clients[i];
+      }
+  }
+  return NULL;
+}
+
+ble_client_data_t* get_client_by_conn_handle(uint8_t conn_handle)
+{
+  for (int i = 0; i < CLIENTS_NUM; i++) {
+      if (conn_handle == ble_server_data.ble_clients[i].conn_handle) {
+          return &ble_server_data.ble_clients[i];
+      }
+  }
+  return NULL;
+}
+
+
+ble_client_data_t* get_client_by_conn_state(client_conn_state_t conn_state)
+{
+  for (int i = 0; i < CLIENTS_NUM; i++) {
+      if (conn_state == ble_server_data.ble_clients[i].conn_state) {
+          return &ble_server_data.ble_clients[i];
+      }
+  }
+  return NULL;
+}
+
 /******************************************************************************
  *
  * @brief Updates the Client info on the LCD
@@ -130,6 +161,28 @@ void update_lcd()
   displayPrintf(DISPLAY_ROW_ASSIGNMENT, "Course Project");
 }
 
+void start_bt_scan()
+{
+  sl_status_t status;
+
+  ble_client_data_t *client = get_client_by_conn_state(CONN_STATE_SCANNING);
+
+  if (client == NULL)
+    client = get_client_by_conn_state(CONN_STATE_DISCONNECTED);
+
+  if (client != NULL) {
+      client->conn_state = CONN_STATE_SCANNING;
+      status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
+
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to start scanning\n");
+      else
+        LOG_INFO("Succeeded to start scanning\n");
+
+      update_lcd();
+  }
+}
+
 /******************************************************************************
  *
  * @brief Handles client boot event
@@ -192,41 +245,29 @@ void handle_bt_scanned(sl_bt_msg_t *evt)
   sl_status_t status;
 
   status = sl_bt_scanner_stop();
+
   if (status != SL_STATUS_OK)
     LOG_ERROR("Failed to stop scanning\n");
 
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (!memcmp(evt->data.evt_scanner_scan_report.address.addr, ble_server_data.ble_clients[i].addr.addr, 6) &&
-          (ble_server_data.ble_clients[i].conn_state == CONN_STATE_SCANNING)) {
-          ble_server_data.ble_clients[i].conn_state = CONN_STATE_CONNECTING;
+  ble_client_data_t *client = get_client_by_addr(evt->data.evt_scanner_scan_report.address);
 
-          status = sl_bt_connection_open(ble_server_data.ble_clients[i].addr, \
-                                         sl_bt_gap_public_address, \
-                                         sl_bt_gap_1m_phy, \
-                                         &ble_server_data.ble_clients[i].conn_handle);
+  if (client != NULL) {
+      client->conn_state = CONN_STATE_CONNECTING;
 
-          if (status != SL_STATUS_OK)
-            LOG_ERROR("Failed to start connection with %d\n", i);
-          else
-            LOG_ERROR("Succeeded to start connection with %d\n", i);
+      status = sl_bt_connection_open(client->addr, \
+                                     sl_bt_gap_public_address, \
+                                     sl_bt_gap_1m_phy, \
+                                     &client->conn_handle);
 
-          update_lcd();
-          break;
-      }
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to start connection\n");
+      else
+        LOG_ERROR("Succeeded to start connection\n");
+
+      update_lcd();
   }
-
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (ble_server_data.ble_clients[i].conn_state == CONN_STATE_SCANNING ||
-          ble_server_data.ble_clients[i].conn_state == CONN_STATE_DISCONNECTED) {
-          status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
-
-          if (status != SL_STATUS_OK)
-            LOG_ERROR("Failed to start scanning for %d\n", i);
-          else
-            LOG_INFO("Succeeded to start scanning for %d\n", i);
-
-          break;
-      }
+  else {
+      start_bt_scan();
   }
 }
 
@@ -241,26 +282,24 @@ void handle_bt_opened(sl_bt_msg_t *evt)
 {
   sl_status_t status;
 
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (!memcmp(evt->data.evt_connection_opened.address.addr, ble_server_data.ble_clients[i].addr.addr, 6)) {
-          ble_server_data.ble_clients[i].conn_state = CONN_STATE_CONNECTED;
+  ble_client_data_t *client = get_client_by_addr(evt->data.evt_scanner_scan_report.address);
 
-          ble_server_data.ble_clients[i].conn_handle = evt->data.evt_connection_opened.connection;
+  if (client != NULL) {
+      client->conn_state = CONN_STATE_CONNECTED;
 
-          LOG_INFO("Connected with %d\n", i);
+      client->conn_handle = evt->data.evt_connection_opened.connection;
 
-          status = sl_bt_sm_increase_security(ble_server_data.ble_clients[i].conn_handle);
+      LOG_INFO("Connected\n");
 
-          if (status != SL_STATUS_OK)
-            LOG_ERROR("Failed to start bonding with %d\n", i);
-          else
-            LOG_INFO("Succeeded to start bonding with %d", i);
+      status = sl_bt_sm_increase_security(client->conn_handle);
 
-          break;
-      }
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to start bonding\n");
+      else
+        LOG_INFO("Succeeded to start bonding\n");
+
+      update_lcd();
   }
-
-  update_lcd();
 }
 
 
@@ -275,22 +314,20 @@ void handle_bt_confirm_bonding(sl_bt_msg_t *evt)
 {
   sl_status_t status;
 
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (evt->data.evt_sm_confirm_bonding.connection == ble_server_data.ble_clients[i].conn_handle) {
-          ble_server_data.ble_clients[i].conn_state = CONN_STATE_BONDING;
+  ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
-          status = sl_bt_sm_bonding_confirm(ble_server_data.ble_clients[i].conn_handle, 1);
+  if (client != NULL) {
+      client->conn_state = CONN_STATE_BONDING;
 
-          if (status != SL_STATUS_OK)
-            LOG_ERROR("Failed to confirm bonding with %d\n", i);
-          else
-            LOG_INFO("Succeeded to confirm bonding with %d\n", i);
+      status = sl_bt_sm_bonding_confirm(client->conn_handle, 1);
 
-          break;
-      }
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to confirm bonding\n");
+      else
+        LOG_INFO("Succeeded to confirm bonding\n");
+
+      update_lcd();
   }
-
-  update_lcd();
 }
 
 
@@ -305,23 +342,21 @@ void handle_bt_confirm_passkey(sl_bt_msg_t *evt)
 {
   sl_status_t status;
 
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (evt->data.evt_sm_confirm_passkey.connection == ble_server_data.ble_clients[i].conn_handle) {
-          ble_server_data.ble_clients[i].conn_state = CONN_STATE_BONDING;
-          displayPrintf(DISPLAY_ROW_PASSKEY, "AC Passkey %u", evt->data.evt_sm_confirm_passkey.passkey);
-          displayPrintf(DISPLAY_ROW_ACTION, "Confirm with PB0");
-          status = sl_bt_sm_passkey_confirm(ble_server_data.ble_clients[i].conn_handle, 1);
+  ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
-          if (status != SL_STATUS_OK)
-            LOG_ERROR("Failed to confirm passkey with %d\n", i);
-          else
-            LOG_INFO("Succeeded to confirm passkey with %d\n", i);
+  if (client != NULL) {
+      client->conn_state = CONN_STATE_BONDING;
+      displayPrintf(DISPLAY_ROW_PASSKEY, "AC Passkey %u", evt->data.evt_sm_confirm_passkey.passkey);
+      displayPrintf(DISPLAY_ROW_ACTION, "Confirm with PB0");
+      status = sl_bt_sm_passkey_confirm(client->conn_handle, 1);
 
-          break;
-      }
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to confirm passkey\n");
+      else
+        LOG_INFO("Succeeded to confirm passkey\n");
+
+      update_lcd();
   }
-
-  update_lcd();
 }
 
 
@@ -334,32 +369,15 @@ void handle_bt_confirm_passkey(sl_bt_msg_t *evt)
  ******************************************************************************/
 void handle_bt_bonded(sl_bt_msg_t *evt)
 {
-  sl_status_t status;
+  ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (evt->data.evt_sm_bonded.connection == ble_server_data.ble_clients[i].conn_handle) {
-          ble_server_data.ble_clients[i].conn_state = CONN_STATE_BONDED;
-          displayPrintf(DISPLAY_ROW_PASSKEY, "");
-          displayPrintf(DISPLAY_ROW_ACTION, "");
-          break;
-      }
+  if (client != NULL) {
+      client->conn_state = CONN_STATE_BONDED;
+      displayPrintf(DISPLAY_ROW_PASSKEY, "");
+      displayPrintf(DISPLAY_ROW_ACTION, "");
   }
 
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (ble_server_data.ble_clients[i].conn_state == CONN_STATE_SCANNING ||
-          ble_server_data.ble_clients[i].conn_state == CONN_STATE_DISCONNECTED) {
-          status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
-
-          if (status != SL_STATUS_OK)
-            LOG_ERROR("Failed to start scanning for %d\n", i);
-          else
-            LOG_INFO("Succeeded to start scanning for %d\n", i);
-
-          break;
-      }
-  }
-
-  update_lcd();
+  start_bt_scan();
 }
 
 
@@ -374,24 +392,22 @@ void handle_bt_bonding_failed(sl_bt_msg_t *evt)
 {
   sl_status_t status;
 
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (evt->data.evt_sm_bonding_failed.connection == ble_server_data.ble_clients[i].conn_handle) {
-          ble_server_data.ble_clients[i].conn_state = CONN_STATE_BONDING;
-          displayPrintf(DISPLAY_ROW_PASSKEY, "");
-          displayPrintf(DISPLAY_ROW_ACTION, "");
+  ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
+  if (client != NULL) {
+      client->conn_state = CONN_STATE_BONDING;
+      displayPrintf(DISPLAY_ROW_PASSKEY, "");
+      displayPrintf(DISPLAY_ROW_ACTION, "");
 
-          status = sl_bt_sm_increase_security(ble_server_data.ble_clients[i].conn_handle);
+      status = sl_bt_sm_increase_security(client->conn_handle);
 
-          if (status != SL_STATUS_OK)
-            LOG_ERROR("Failed to start bonding with %d\n", i);
-          else
-            LOG_INFO("Succeeded to start bonding with %d", i);
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to start bonding\n");
+      else
+        LOG_INFO("Succeeded to start bonding\n");
 
-          break;
-      }
+      update_lcd();
   }
-  update_lcd();
 }
 
 
@@ -406,43 +422,42 @@ void handle_bt_closed(sl_bt_msg_t *evt)
 {
   sl_status_t status;
 
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (evt->data.evt_connection_closed.connection == ble_server_data.ble_clients[i].conn_handle) {
-          LOG_INFO("%d Disconnected \n", i);
+  ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
-          ble_server_data.ble_clients[i].conn_state = CONN_STATE_SCANNING;
-          ble_server_data.ble_clients[i].conn_handle = 0;
+  if (client != NULL) {
+      LOG_INFO("Disconnected\n");
 
-          status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
+      client->conn_state = CONN_STATE_SCANNING;
+      client->conn_handle = 0;
 
-          if (status != SL_STATUS_OK)
-            LOG_ERROR("Failed to start scanning for %d\n", i);
-          else
-            LOG_INFO("Succeeded to start scanning for %d\n", i);
+      status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
 
-          break;
-      }
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to start scanning\n");
+      else
+        LOG_INFO("Succeeded to start scanning\n");
+
+      update_lcd();
   }
-  update_lcd();
 }
 
 void handle_bt_external_signals(sl_bt_msg_t *evt) {
   //sl_status_t sl_status;
 
   if((evt->data.evt_system_external_signal.extsignals == evtB1_Pressed))  {
-    LOG_INFO("Pressed 1");
+      LOG_INFO("Pressed 1");
   }
 
   if((evt->data.evt_system_external_signal.extsignals == evtB2_Pressed))  {
-    LOG_INFO("Pressed 2");
+      LOG_INFO("Pressed 2");
   }
 
   if((evt->data.evt_system_external_signal.extsignals == evtB3_Pressed))  {
-    LOG_INFO("Pressed 3");
+      LOG_INFO("Pressed 3");
   }
 
   if((evt->data.evt_system_external_signal.extsignals == evtB4_Pressed))  {
-    LOG_INFO("Pressed 4");
+      LOG_INFO("Pressed 4");
   }
 }
 

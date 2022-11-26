@@ -30,8 +30,10 @@ typedef enum {
 typedef struct {
   bd_addr addr;
   const uint8_t addr_type;
+
   uint8_t conn_handle;
   client_conn_state_t conn_state;
+
   bool onoff_state;
   bool gatt_ack_pending;
 }ble_client_data_t;
