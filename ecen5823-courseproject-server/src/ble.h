@@ -13,10 +13,13 @@
 #include "em_common.h"
 #include "sl_bluetooth.h"
 
+#define CLIENTS_NUM 2
+
 
 typedef enum {
   CONN_STATE_UNKNOWN,
   CONN_STATE_SCANNING,
+  CONN_STATE_CONNECTING,
   CONN_STATE_CONNECTED,
   CONN_STATE_BONDING,
   CONN_STATE_BONDED,
@@ -33,10 +36,6 @@ typedef struct {
   bool gatt_ack_pending;
 }ble_client_data_t;
 
-//const void *update_lcd();
-//const void *set_onoff_state(bool state);
-//const void *handle_rec_data();
-
 typedef struct {
   bd_addr addr;
   uint8_t addr_type;
@@ -45,15 +44,13 @@ typedef struct {
   uint8_t offset_temp;
   bool waiting_for_user_input;
   bool automatic_temp_control;
-  ble_client_data_t ble_client_ac; // = {00, 0, 0, UNKNOWN, false, false};
-  ble_client_data_t ble_client_heater; // = {00, 0, 0, UNKNOWN, false, false};
-  uint8_t ble_client_devices_count;
+  ble_client_data_t ble_clients[CLIENTS_NUM]; // 0: AC, 1: Heater
 }ble_server_data_t;
 
 
 void ble_init();
 void handle_ble_event(sl_bt_msg_t *evt);
-ble_server_data_t* get_ble_data();
+ble_server_data_t* get_ble_server_data();
 
 
 #endif /* SRC_BLE_H_ */
