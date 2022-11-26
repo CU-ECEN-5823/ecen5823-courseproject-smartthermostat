@@ -54,10 +54,8 @@
 #include "src/gpio.h"
 #include "src/lcd.h"
 #include "src/oscillators.h"
-#include "src/timers.h"
 #include "src/irq.h"
 #include "src/scheduler.h"
-#include "src/i2c.h"
 #include "src/ble.h"
 
 
@@ -176,9 +174,7 @@ SL_WEAK void app_init(void)
 
   gpioInit();
   osc_init();
-  LETIMER0_init();
   IRQ_Init();
-  i2c_init();
 
 } // app_init()
 
@@ -248,26 +244,8 @@ SL_WEAK void app_process_action(void)
  *****************************************************************************/
 void sl_bt_on_event(sl_bt_msg_t *evt)
 {
-  // Just a trick to hide a compiler warning about unused input parameter evt.
-  // (void) evt;
 
-  // For A5 onward:
-  // Some events require responses from our application code,
-  // and don’t necessarily advance our state machines.
-  // For A5 uncomment the next 2 function calls
-
-  handle_ble_event(evt); // put this code in ble.c/.h
-
-  // sequence through states driven by events
-/*
-  #if (DEVICE_IS_BLE_SERVER == 1)
-    temperature_state_machine(evt);    // put this code in scheduler.c/.h
-  #endif
-
-  #if (DEVICE_IS_BLE_SERVER == 0)
-    discover_state_machine(evt);    // put this code in scheduler.c/.h
-  #endif
-*/
+  handle_ble_event(evt);
 
 } // sl_bt_on_event()
 

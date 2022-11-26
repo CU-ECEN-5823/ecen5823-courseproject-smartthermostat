@@ -18,14 +18,12 @@
 #include "em_gpio.h"
 #include "gpio.h"
 #include "irq.h"
-#include "scheduler.h"
 #include "app.h"
 #include "sl_i2cspm.h"
+#include "scheduler.h"
 
 #define INCLUDE_LOG_DEBUG (1)
 #include "log.h"
-
-uint32_t milliseconds=0;
 
 // This function performs the following
 // 1. Clear pending interrupts
@@ -46,7 +44,19 @@ void GPIO_EVEN_IRQHandler()  {
 
   GPIO_IntClear(flags);
 
-  schedulerSetEventPB0Pressed();
+  //LOG_INFO("Flags = %d",flags);
+
+  if( flags == (1<<BUTTON_1_PIN)) {
+//      LOG_INFO("1 Pressed");
+      schedulerSetEventB1Pressed();
+  }
+
+  if( flags == (1<<BUTTON_3_PIN)) {
+//      LOG_INFO("3 Pressed");
+      schedulerSetEventB3Pressed();
+  }
+
+  //schedulerSetEventPB0Pressed();
 
 }   //    GPIO_EVEN_IRQHandler()
 
@@ -56,6 +66,18 @@ void GPIO_ODD_IRQHandler()  {
 
   GPIO_IntClear(flags);
 
-  schedulerSetEventPB1Pressed();
+  //LOG_INFO("Flags = %d",flags);
+
+  if( flags == (1<<BUTTON_2_PIN)) {
+//      LOG_INFO("2 Pressed");
+      schedulerSetEventB2Pressed();
+  }
+
+  if( flags == (1<<BUTTON_4_PIN)) {
+//      LOG_INFO("4 Pressed");
+      schedulerSetEventB4Pressed();
+  }
+
+  //schedulerSetEventPB1Pressed();
 
 }   //    GPIO_ODD_IRQHandler()

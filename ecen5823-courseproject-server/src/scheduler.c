@@ -45,3 +45,42 @@ void schedulerSetEventPB1Pressed() {
   CORE_EXIT_CRITICAL();
 }   //    schedulerSetEventPB1Pressed()
 
+void schedulerSetEventB1Pressed() {
+  CORE_DECLARE_IRQ_STATE;
+  CORE_ENTER_CRITICAL();
+
+//  myEvents |= (1<<evtLETIMER0_COMP1);
+  sl_bt_external_signal(evtB1_Pressed);
+
+  CORE_EXIT_CRITICAL();
+}   //    schedulerSetEventB1Pressed()
+
+void schedulerSetEventB2Pressed() {
+  CORE_DECLARE_IRQ_STATE;
+  CORE_ENTER_CRITICAL();
+
+//  myEvents |= (1<<evtLETIMER0_COMP1);
+  sl_bt_external_signal(evtB2_Pressed);
+
+  CORE_EXIT_CRITICAL();
+}   //    schedulerSetEventB2Pressed()
+
+void schedulerSetEventB3Pressed() {
+  CORE_DECLARE_IRQ_STATE;
+  CORE_ENTER_CRITICAL();
+
+//  myEvents |= (1<<evtLETIMER0_COMP1);
+  sl_bt_external_signal(evtB3_Pressed);
+
+  CORE_EXIT_CRITICAL();
+}   //    schedulerSetEventB3Pressed()
+
+void schedulerSetEventB4Pressed() {
+  CORE_DECLARE_IRQ_STATE;
+  CORE_ENTER_CRITICAL();
+
+//  myEvents |= (1<<evtLETIMER0_COMP1);
+  sl_bt_external_signal(evtB4_Pressed);
+
+  CORE_EXIT_CRITICAL();
+}   //    schedulerSetEventB4Pressed()

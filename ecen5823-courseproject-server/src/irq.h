@@ -1,6 +1,6 @@
 /*******************************************************************************
- * @file        timer.h
- * @brief       Timer header file
+ * @file        irq.h
+ * @brief       Interrupt header file
  * @author      Amey More, Amey.More@colorado.edu
  * @due         Oct 24, 2022
  *
@@ -13,12 +13,12 @@
  *
  ******************************************************************************/
 
-#ifndef TIMER_H
-#define TIMER_H
+#ifndef IRQ_H
+#define IRQ_H
+
+#include "stdint.h"
 
 // Function prototypes
-void LETIMER0_init();
-void timerWaitUs_polled(uint32_t us_wait);
-void timerWaitUs_irq(uint32_t us_wait);
+void IRQ_Init();
 
-#endif  /* TIMER_H_ */
+#endif  /* IRQ_H_ */

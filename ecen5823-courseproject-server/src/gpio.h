@@ -24,8 +24,20 @@
 #ifndef SRC_GPIO_H_
 #define SRC_GPIO_H_
 
+#define BUTTON_1_PORT gpioPortD
+#define BUTTON_1_PIN 10
 
+#define BUTTON_2_PORT gpioPortA
+#define BUTTON_2_PIN 3
 
+#define BUTTON_3_PORT gpioPortD
+#define BUTTON_3_PIN 12
+
+#define BUTTON_4_PORT gpioPortD
+#define BUTTON_4_PIN 11
+
+#define PB0_port gpioPortF
+#define PB0_pin 6
 
 // Function prototypes
 void gpioInit();

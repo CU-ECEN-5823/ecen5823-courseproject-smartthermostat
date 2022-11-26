@@ -8,6 +8,7 @@
  ******************************************************************************/
 #include "ble.h"
 #include "lcd.h"
+#include "scheduler.h"
 
 #define INCLUDE_LOG_DEBUG 1
 #include "src/log.h"
@@ -425,6 +426,26 @@ void handle_bt_closed(sl_bt_msg_t *evt)
   update_lcd();
 }
 
+void handle_bt_external_signals(sl_bt_msg_t *evt) {
+  //sl_status_t sl_status;
+
+  if((evt->data.evt_system_external_signal.extsignals == evtB1_Pressed))  {
+    LOG_INFO("Pressed 1");
+  }
+
+  if((evt->data.evt_system_external_signal.extsignals == evtB2_Pressed))  {
+    LOG_INFO("Pressed 2");
+  }
+
+  if((evt->data.evt_system_external_signal.extsignals == evtB3_Pressed))  {
+    LOG_INFO("Pressed 3");
+  }
+
+  if((evt->data.evt_system_external_signal.extsignals == evtB4_Pressed))  {
+    LOG_INFO("Pressed 4");
+  }
+}
+
 /******************************************************************************
  *
  * @brief Event handler for BLE events
@@ -450,6 +471,9 @@ void handle_ble_event(sl_bt_msg_t *evt)
       break;
     case sl_bt_evt_system_soft_timer_id:
       displayUpdate(evt);
+      break;
+    case sl_bt_evt_system_external_signal_id:
+      handle_bt_external_signals(evt);
       break;
     case sl_bt_evt_sm_bonded_id:
       handle_bt_bonded(evt);
