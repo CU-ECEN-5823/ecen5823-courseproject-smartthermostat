@@ -2,41 +2,96 @@
  * @file        irq.c
  * @brief       Interrupt Service Routines and Interrupt Enable
  * @author      Amey More, Amey.More@colorado.edu
- * @due         Oct 24, 2022
+ *
+ * @due         Nov 24, 2022
+ * @project     ecen5823-courseproject-server
  *
  * @institution University of Colorado Boulder (UCB)
  * @course      ECEN 5823-001: IoT Embedded Firmware (Fall 2022)
  * @instructor  David Sluiter
  *
- * @assignment  ecen5823-assignment9-ameyflash
- * @due         Oct 28, 2022
+ * @editor      Nov 28, 2022, Ajay Kandagal, ajka9053@colorado.edu
+ * @change      Added IRQ Handlers for LETIMER0 and I2C0
  *
  ******************************************************************************/
-
+#include "em_common.h"
 #include "em_letimer.h"
-#include "em_cmu.h"
-#include "em_gpio.h"
-#include "gpio.h"
-#include "irq.h"
-#include "app.h"
 #include "sl_i2cspm.h"
+
+#include "irq.h"
+#include "gpio.h"
 #include "scheduler.h"
 
 #define INCLUDE_LOG_DEBUG (1)
 #include "log.h"
 
-// This function performs the following
-// 1. Clear pending interrupts
-// 2. Enable required interrupt
+
+/*******************************************************************************
+ * Clears the pending interrupts and enables then enables NVIC flag for
+ * GPIO_EVEN_IRQn, GPIO_ODD_IRQn and LETIMER0_IRQn.
+ ******************************************************************************/
 void IRQ_Init(){
 
   NVIC_ClearPendingIRQ(GPIO_EVEN_IRQn);
   NVIC_ClearPendingIRQ(GPIO_ODD_IRQn);
+  NVIC_ClearPendingIRQ(LETIMER0_IRQn);
 
   NVIC_EnableIRQ(GPIO_EVEN_IRQn);
   NVIC_EnableIRQ(GPIO_ODD_IRQn);
+  NVIC_EnableIRQ(LETIMER0_IRQn);
 
 } // IRQ_Init()
+
+
+/*******************************************************************************
+ * Calls scheduler to set an event when LETIMER0's COMP1 or COMP1
+ * overflows.
+ ******************************************************************************/
+void LETIMER0_IRQHandler(void)
+{
+  // Get value of pending interrupts in LETIMER0
+  uint32_t reason = LETIMER_IntGetEnabled(LETIMER0);
+
+  // Clear pending interrupts in LETIMER0
+  LETIMER_IntClear(LETIMER0, reason);
+
+  if (reason & LETIMER_IEN_UF) {
+      // Enters critical section and calls scheduler to set temperature read
+      CORE_DECLARE_IRQ_STATE;
+      CORE_ENTER_CRITICAL();
+      schedulerSetTimerComp0Event();
+      CORE_EXIT_CRITICAL();
+  }
+
+  if (reason & LETIMER_IEN_COMP1) {
+      // Enters critical section and calls scheduler to set wait period over
+      CORE_DECLARE_IRQ_STATE;
+      CORE_ENTER_CRITICAL();
+      schedulerSetTimerComp1Event();
+      CORE_EXIT_CRITICAL();
+  }
+}
+
+
+/*******************************************************************************
+ * Calls scheduler to set an event when I2C interrupts occur
+ ******************************************************************************/
+void I2C0_IRQHandler(void) {
+  I2C_TransferReturn_TypeDef transferStatus;
+  transferStatus = I2C_Transfer(I2C0);
+
+  // set I2C scheduler on successful transfer
+  if (transferStatus == i2cTransferDone) {
+      schedulerSetI2CEventComplete ();
+  }
+  // call scheduler to reset the state machine if I2C transfer fails
+  else if (transferStatus < 0) {
+      schedulerSetI2CEventFail ();
+      //     schedulerReset ();
+      LOG_ERROR("%d", transferStatus);
+  }
+} // I2C0_IRQHandler()
+
 
 // ISR for Button 0
 void GPIO_EVEN_IRQHandler()  {
@@ -47,18 +102,19 @@ void GPIO_EVEN_IRQHandler()  {
   //LOG_INFO("Flags = %d",flags);
 
   if( flags == (1<<BUTTON_1_PIN)) {
-//      LOG_INFO("1 Pressed");
+      //      LOG_INFO("1 Pressed");
       schedulerSetEventB1Pressed();
   }
 
   if( flags == (1<<BUTTON_3_PIN)) {
-//      LOG_INFO("3 Pressed");
+      //      LOG_INFO("3 Pressed");
       schedulerSetEventB3Pressed();
   }
 
   //schedulerSetEventPB0Pressed();
 
 }   //    GPIO_EVEN_IRQHandler()
+
 
 // ISR for Button 1
 void GPIO_ODD_IRQHandler()  {
@@ -69,12 +125,12 @@ void GPIO_ODD_IRQHandler()  {
   //LOG_INFO("Flags = %d",flags);
 
   if( flags == (1<<BUTTON_2_PIN)) {
-//      LOG_INFO("2 Pressed");
+      //      LOG_INFO("2 Pressed");
       schedulerSetEventB2Pressed();
   }
 
   if( flags == (1<<BUTTON_4_PIN)) {
-//      LOG_INFO("4 Pressed");
+      //      LOG_INFO("4 Pressed");
       schedulerSetEventB4Pressed();
   }
 

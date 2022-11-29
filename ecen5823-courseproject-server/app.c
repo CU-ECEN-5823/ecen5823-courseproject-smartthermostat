@@ -49,6 +49,9 @@
 #include "src/lcd.h"
 #include "src/ble.h"
 #include "src/irq.h"
+#include "src/oscillators.h"
+#include "src/timers.h"
+#include "src/scheduler.h"
 
 // Include logging specifically for this .c file
 #define INCLUDE_LOG_DEBUG 1
@@ -120,6 +123,15 @@ sl_power_manager_on_isr_exit_t app_sleep_on_isr_exit(void)
 #endif // defined(SL_CATALOG_POWER_MANAGER_PRESENT)
 
 
+#define LM75A_DEV_ADDR 0x90
+#define LM75A_REG_TEMP 0x00
+#define LM75A_REG_CONG 0x01
+#define LM75A_REG_PROD_ID 0x07
+#define LM75A_PROD_ID 0xA1
+#define LM75A_SHUTDOWN_MASK 0x01
+#define LM75A_INTERRUPT_MASK 0x02
+
+
 /**************************************************************************//**
  * Application Init.
  *****************************************************************************/
@@ -128,6 +140,10 @@ SL_WEAK void app_init(void)
   gpioInit();
   ble_init();
   IRQ_Init();
+
+  init_LFXO();
+
+  init_LETIMER0(0, 3000);
 } // app_init()
 
 
@@ -152,7 +168,8 @@ SL_WEAK void app_process_action(void)
  *****************************************************************************/
 void sl_bt_on_event(sl_bt_msg_t *evt)
 {
-
   handle_ble_event(evt);
+  temperatureStateMachine(evt);
+
 
 } // sl_bt_on_event()

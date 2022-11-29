@@ -53,6 +53,7 @@ typedef struct {
 void ble_init();
 void handle_ble_event(sl_bt_msg_t *evt);
 ble_server_data_t* get_ble_server_data();
+void update_lcd();
 
 
 #endif /* SRC_BLE_H_ */

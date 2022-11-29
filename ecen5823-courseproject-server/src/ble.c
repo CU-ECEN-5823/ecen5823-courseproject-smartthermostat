@@ -163,24 +163,24 @@ void update_lcd()
 
 void start_bt_scan()
 {
-  sl_status_t status;
-
-  ble_client_data_t *client = get_client_by_conn_state(CONN_STATE_SCANNING);
-
-  if (client == NULL)
-    client = get_client_by_conn_state(CONN_STATE_DISCONNECTED);
-
-  if (client != NULL) {
-      client->conn_state = CONN_STATE_SCANNING;
-      status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
-
-      if (status != SL_STATUS_OK)
-        LOG_ERROR("Failed to start scanning\n");
-      else
-        LOG_INFO("Succeeded to start scanning\n");
-
-      update_lcd();
-  }
+  //  sl_status_t status;
+  //
+  //  ble_client_data_t *client = get_client_by_conn_state(CONN_STATE_SCANNING);
+  //
+  //  if (client == NULL)
+  //    client = get_client_by_conn_state(CONN_STATE_DISCONNECTED);
+  //
+  //  if (client != NULL) {
+  //      client->conn_state = CONN_STATE_SCANNING;
+  //      status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
+  //
+  //      if (status != SL_STATUS_OK)
+  //        LOG_ERROR("Failed to start scanning\n");
+  //      else
+  //        LOG_INFO("Succeeded to start scanning\n");
+  //
+  //      update_lcd();
+  //  }
 }
 
 /******************************************************************************
