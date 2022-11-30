@@ -156,6 +156,20 @@ void schedulerSetTimerComp1Event()
   CORE_EXIT_CRITICAL();
 }
 
+void handleI2CFailedEvent()
+{
+  if (get_ble_server_data()->failed_i2c_count >= MAX_I2C_FAIL_COUNT) {
+    get_ble_server_data()->lm75_sensor_found = false;
+    update_lcd();
+  }
+  else {
+    get_ble_server_data()->failed_i2c_count++;
+  }
+
+  g_next_state_lm75 = STATE_LM75_IDLE;
+  NVIC_DisableIRQ(I2C0_IRQn);
+}
+
 
 void temperatureStateMachine(sl_bt_msg_t *evt)
 {
@@ -187,8 +201,7 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
     case STATE_LM75_CONFIG:
       LOG_INFO("STATE_LM75_CONFIG\n");
       if (event & EVT_I2C_TR_FAIL) {
-          g_next_state_lm75 = STATE_LM75_IDLE;
-          NVIC_DisableIRQ(I2C0_IRQn);
+          handleI2CFailedEvent();
       }
       else if (event & EVT_I2C_TR_SUCCESS) {
           g_next_state_lm75 = STATE_LM75_SELECT_TEMP_REG;
@@ -201,8 +214,7 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
     case STATE_LM75_SELECT_TEMP_REG:
       LOG_INFO("STATE_LM75_SELECT_TEMP_REG\n");
       if (event & EVT_I2C_TR_FAIL) {
-          g_next_state_lm75 = STATE_LM75_IDLE;
-          NVIC_DisableIRQ(I2C0_IRQn);
+          handleI2CFailedEvent();
       }
       else if (event & EVT_I2C_TR_SUCCESS) {
           g_next_state_lm75 = STATE_LM75_READ_TEMP;
@@ -215,7 +227,10 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
       LOG_INFO("STATE_LM75_READ_TEMP\n");
       g_next_state_lm75 = STATE_LM75_IDLE;
       NVIC_DisableIRQ(I2C0_IRQn);
-      if (event & EVT_I2C_TR_SUCCESS) {
+      if (event & EVT_I2C_TR_FAIL) {
+          handleI2CFailedEvent();
+      }
+      else if (event & EVT_I2C_TR_SUCCESS) {
           sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
           uint16_t temp_val = i2c_data[0] << 8 | i2c_data[1];
           temp_val = ((temp_val * 9) / (5 *256)) + 32;

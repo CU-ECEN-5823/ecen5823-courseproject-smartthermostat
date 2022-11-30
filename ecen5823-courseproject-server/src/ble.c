@@ -29,8 +29,9 @@
 ble_server_data_t ble_server_data;
 
 
-const uint8_t clients_addr[CLIENTS_NUM][6] = {{0x3f, 0x4a, 0xa6, 0x14, 0x2e, 0x84},   // AC
-    {0x49, 0x4a, 0xa6, 0x14, 0x2e, 0x84}    // Heater
+const uint8_t clients_addr[CLIENTS_NUM][6] = {
+    {0x49, 0x4a, 0xa6, 0x14, 0x2e, 0x84},  // Heater
+    {0x3f, 0x4a, 0xa6, 0x14, 0x2e, 0x84}  // AC
 };
 
 
@@ -48,8 +49,9 @@ void ble_init()
   ble_server_data.offset_temp = 1;
   ble_server_data.waiting_for_user_input = false;
   ble_server_data.automatic_temp_control = true;
-  ble_server_data.session_scan_count = 0;
-  ble_server_data.failed_scan_count = 0;
+  ble_server_data.session_scans_count = 0;
+  ble_server_data.failed_i2c_count = 0;
+  ble_server_data.lm75_sensor_found = true;
 
   for (int i = 0; i < CLIENTS_NUM; i++) {
       ble_server_data.ble_clients[i].conn_state = CONN_STATE_UNKNOWN;
@@ -114,6 +116,7 @@ void update_lcd()
       strcat(ac_string, "CONNECTED");
       break;
     case CONN_STATE_BONDING:
+    case CONN_STATE_PASSKEY:
       strcat(ac_string, "BONDING");
       break;
     case CONN_STATE_BONDED:
@@ -121,6 +124,9 @@ void update_lcd()
         strcat(ac_string, "ON");
       else
         strcat(ac_string, "OFF");
+      break;
+    case CONN_STATE_NOT_BONDED:
+      strcat(ac_string, "NOT BOND");
       break;
     case CONN_STATE_DISCONNECTED:
       strcat(ac_string, "DISCONNECTED");
@@ -139,12 +145,13 @@ void update_lcd()
       strcat(heater_string, "SCANNING");
       break;
     case CONN_STATE_CONNECTING:
-      strcat(ac_string, "CONNECTING");
+      strcat(heater_string, "CONNECTING");
       break;
     case CONN_STATE_CONNECTED:
       strcat(heater_string, "CONNECTED");
       break;
     case CONN_STATE_BONDING:
+    case CONN_STATE_PASSKEY:
       strcat(heater_string, "BONDING");
       break;
     case CONN_STATE_BONDED:
@@ -152,6 +159,9 @@ void update_lcd()
         strcat(heater_string, "ON");
       else
         strcat(heater_string, "OFF");
+      break;
+    case CONN_STATE_NOT_BONDED:
+      strcat(heater_string, "NOT BOND");
       break;
     case CONN_STATE_DISCONNECTED:
       strcat(heater_string, "DISCONNECTED");
@@ -161,12 +171,21 @@ void update_lcd()
       break;
   }
 
+  if (ble_server_data.ble_clients[0].conn_state != CONN_STATE_PASSKEY &&
+      ble_server_data.ble_clients[1].conn_state != CONN_STATE_PASSKEY) {
+      displayPrintf(DISPLAY_ROW_PASSKEY, "");
+      displayPrintf(DISPLAY_ROW_ACTION, "");
+  }
+
   displayPrintf(DISPLAY_ROW_NAME, "Smart Thermostat");
   displayPrintf(DISPLAY_ROW_BTADDR2, heater_string);
   displayPrintf(DISPLAY_ROW_CLIENTADDR, ac_string);
-  displayPrintf(DISPLAY_ROW_TEMPVALUE, "Curr Temp : %dC", ble_server_data.current_temp);
-  displayPrintf(DISPLAY_ROW_8, "Target Temp : %dC", ble_server_data.target_temp);
+  displayPrintf(DISPLAY_ROW_8, "Curr Temp : %dC", ble_server_data.current_temp);
+  displayPrintf(DISPLAY_ROW_9, "Target Temp : %dC", ble_server_data.target_temp);
   displayPrintf(DISPLAY_ROW_ASSIGNMENT, "Course Project");
+
+  if (!get_ble_server_data()->lm75_sensor_found)
+    displayPrintf(DISPLAY_ROW_11, "Sensor Not Found!");
 }
 
 void start_bt_scan()
@@ -174,25 +193,23 @@ void start_bt_scan()
   sl_status_t status;
   ble_client_data_t *client;
 
-  client = get_client_by_conn_state(CONN_STATE_CONNECTING | CONN_STATE_CONNECTED | CONN_STATE_BONDING | CONN_STATE_NOT_FOUND);
+  // If one of the clients is found and in process of connection/bonding then don't scan until process is complete
+  client = get_client_by_conn_state(CONN_STATE_CONNECTING | CONN_STATE_CONNECTED | CONN_STATE_BONDING);
 
   if (client != NULL)
     return;
 
-  if (ble_server_data.session_scan_count >= MAX_SESSION_SCANS)
-    return;
-
-  if (ble_server_data.failed_scan_count >= MAX_FAILED_SCANS) {
-      ble_server_data.failed_scan_count = MAX_FAILED_SCANS;
-      for (int i = 0; i < CLIENTS_NUM; i++) {
-          client = get_client_by_conn_state(CONN_STATE_SCANNING);
-          client->conn_state = CONN_STATE_NOT_FOUND;
+  if (ble_server_data.session_scans_count == MAX_SESSION_SCANS) {
+      // Making sure this is triggered only once
+      ble_server_data.session_scans_count = MAX_SESSION_SCANS;
+      while(get_client_by_conn_state(CONN_STATE_SCANNING) != NULL){
+          get_client_by_conn_state(CONN_STATE_SCANNING)->conn_state = CONN_STATE_NOT_FOUND;
       }
       update_lcd();
       return;
   }
 
-  client = get_client_by_conn_state(CONN_STATE_SCANNING | CONN_STATE_DISCONNECTED);
+  client = get_client_by_conn_state(CONN_STATE_SCANNING | CONN_STATE_NOT_FOUND);
 
   if (client != NULL) {
       client->conn_state = CONN_STATE_SCANNING;
@@ -206,20 +223,17 @@ void start_bt_scan()
       update_lcd();
   }
 
-  ble_server_data.session_scan_count++;
+  ble_server_data.session_scans_count++;
 }
 
 void start_manual_scan()
 {
-  ble_client_data_t *client;
-
-  for (int i = 0; i < CLIENTS_NUM; i++) {
-      client = get_client_by_conn_state(CONN_STATE_NOT_FOUND);
-      client->conn_state = CONN_STATE_SCANNING;
+  while (get_client_by_conn_state(CONN_STATE_NOT_FOUND) != NULL) {
+      get_client_by_conn_state(CONN_STATE_NOT_FOUND)->conn_state = CONN_STATE_SCANNING;
   }
 
-  ble_server_data.session_scan_count = 0;
-  ble_server_data.failed_scan_count = 0;
+  ble_server_data.session_scans_count = 0;
+
   start_bt_scan();
 }
 
@@ -292,7 +306,7 @@ void handle_bt_scanned(sl_bt_msg_t *evt)
 
   ble_client_data_t *client = get_client_by_addr(evt->data.evt_scanner_scan_report.address);
 
-  if (client != NULL) {
+  if (client != NULL && client->conn_state != CONN_STATE_DISCONNECTED) {
       client->conn_state = CONN_STATE_CONNECTING;
 
       status = sl_bt_connection_open(client->addr, \
@@ -303,13 +317,13 @@ void handle_bt_scanned(sl_bt_msg_t *evt)
       if (status != SL_STATUS_OK)
         LOG_ERROR("Failed to start connection\n");
       else
-        LOG_ERROR("Succeeded to start connection\n");
-
-      update_lcd();
+        LOG_INFO("Succeeded to start connection\n");
   }
   else {
       start_bt_scan();
   }
+
+  update_lcd();
 }
 
 /******************************************************************************
@@ -392,7 +406,7 @@ void handle_bt_confirm_passkey(sl_bt_msg_t *evt)
   ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
   if (client != NULL) {
-      client->conn_state = CONN_STATE_BONDING;
+      client->conn_state = CONN_STATE_PASSKEY;
       displayPrintf(DISPLAY_ROW_PASSKEY, "AC Passkey %u", evt->data.evt_sm_confirm_passkey.passkey);
       displayPrintf(DISPLAY_ROW_ACTION, "Confirm with PB0");
       status = sl_bt_sm_passkey_confirm(client->conn_handle, 1);
@@ -419,13 +433,12 @@ void handle_bt_bonded(sl_bt_msg_t *evt)
   ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
   if (client != NULL) {
-      client->bond_handle = evt->data.evt_sm_confirm_bonding.bonding_handle;
       client->conn_state = CONN_STATE_BONDED;
-      displayPrintf(DISPLAY_ROW_PASSKEY, "");
-      displayPrintf(DISPLAY_ROW_ACTION, "");
+      client->bond_handle = evt->data.evt_sm_confirm_bonding.bonding_handle;
   }
 
   start_bt_scan();
+  update_lcd();
 }
 
 
@@ -441,14 +454,12 @@ void handle_bt_bonding_failed(sl_bt_msg_t *evt)
   ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
   if (client != NULL) {
+      client->conn_state = CONN_STATE_NOT_BONDED;
       LOG_INFO("Bonding Failed:: reason :: %u", evt->data.evt_sm_bonding_failed.reason);
-
-      client->conn_state = CONN_STATE_BONDING;
-      displayPrintf(DISPLAY_ROW_PASSKEY, "");
-      displayPrintf(DISPLAY_ROW_ACTION, "");
-
-      update_lcd();
   }
+
+  start_bt_scan();
+  update_lcd();
 }
 
 
@@ -474,13 +485,19 @@ void handle_bt_closed(sl_bt_msg_t *evt)
       else
         LOG_INFO("Succeeded to delete bonding");
 
+
+
       client->conn_handle = 0x00;
       client->bond_handle = 0x00;
-      client->conn_state = CONN_STATE_SCANNING;
 
-      start_bt_scan();
-      update_lcd();
+      // If connection closed by client but not explicitly by server
+      if (client->conn_state != CONN_STATE_DISCONNECTED) {
+          client->conn_state = CONN_STATE_SCANNING;
+          start_manual_scan();
+      }
   }
+
+  update_lcd();
 }
 
 void handle_bt_external_signals(sl_bt_msg_t *evt) {
@@ -542,8 +559,6 @@ void handle_ble_event(sl_bt_msg_t *evt)
       handle_bt_confirm_passkey(evt);
       break;
     case sl_bt_evt_system_soft_timer_id:
-      ble_server_data.session_scan_count = 0;
-      ble_server_data.failed_scan_count++;
       displayUpdate(evt);
       break;
   } // end - switch

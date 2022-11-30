@@ -169,7 +169,7 @@ SL_WEAK void app_process_action(void)
 void sl_bt_on_event(sl_bt_msg_t *evt)
 {
   handle_ble_event(evt);
-  temperatureStateMachine(evt);
 
-
+  if (get_ble_server_data()->lm75_sensor_found)
+    temperatureStateMachine(evt);
 } // sl_bt_on_event()
