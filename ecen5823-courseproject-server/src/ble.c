@@ -48,6 +48,8 @@ void ble_init()
   ble_server_data.offset_temp = 1;
   ble_server_data.waiting_for_user_input = false;
   ble_server_data.automatic_temp_control = true;
+  ble_server_data.session_scan_count = 0;
+  ble_server_data.failed_scan_count = 0;
 
   for (int i = 0; i < CLIENTS_NUM; i++) {
       ble_server_data.ble_clients[i].conn_state = CONN_STATE_UNKNOWN;
@@ -77,10 +79,10 @@ ble_client_data_t* get_client_by_conn_handle(uint8_t conn_handle)
 }
 
 
-ble_client_data_t* get_client_by_conn_state(client_conn_state_t conn_state)
+ble_client_data_t* get_client_by_conn_state(uint32_t conn_state)
 {
   for (int i = 0; i < CLIENTS_NUM; i++) {
-      if (conn_state == ble_server_data.ble_clients[i].conn_state) {
+      if (conn_state & (uint32_t)ble_server_data.ble_clients[i].conn_state) {
           return &ble_server_data.ble_clients[i];
       }
   }
@@ -123,6 +125,9 @@ void update_lcd()
     case CONN_STATE_DISCONNECTED:
       strcat(ac_string, "DISCONNECTED");
       break;
+    case CONN_STATE_NOT_FOUND:
+      strcat(ac_string, "NOT FOUND");
+      break;
   }
 
   switch (ble_server_data.ble_clients[1].conn_state)
@@ -151,6 +156,9 @@ void update_lcd()
     case CONN_STATE_DISCONNECTED:
       strcat(heater_string, "DISCONNECTED");
       break;
+    case CONN_STATE_NOT_FOUND:
+      strcat(heater_string, "NOT FOUND");
+      break;
   }
 
   displayPrintf(DISPLAY_ROW_NAME, "Smart Thermostat");
@@ -163,24 +171,56 @@ void update_lcd()
 
 void start_bt_scan()
 {
-  //  sl_status_t status;
-  //
-  //  ble_client_data_t *client = get_client_by_conn_state(CONN_STATE_SCANNING);
-  //
-  //  if (client == NULL)
-  //    client = get_client_by_conn_state(CONN_STATE_DISCONNECTED);
-  //
-  //  if (client != NULL) {
-  //      client->conn_state = CONN_STATE_SCANNING;
-  //      status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
-  //
-  //      if (status != SL_STATUS_OK)
-  //        LOG_ERROR("Failed to start scanning\n");
-  //      else
-  //        LOG_INFO("Succeeded to start scanning\n");
-  //
-  //      update_lcd();
-  //  }
+  sl_status_t status;
+  ble_client_data_t *client;
+
+  client = get_client_by_conn_state(CONN_STATE_CONNECTING | CONN_STATE_CONNECTED | CONN_STATE_BONDING | CONN_STATE_NOT_FOUND);
+
+  if (client != NULL)
+    return;
+
+  if (ble_server_data.session_scan_count >= MAX_SESSION_SCANS)
+    return;
+
+  if (ble_server_data.failed_scan_count >= MAX_FAILED_SCANS) {
+      ble_server_data.failed_scan_count = MAX_FAILED_SCANS;
+      for (int i = 0; i < CLIENTS_NUM; i++) {
+          client = get_client_by_conn_state(CONN_STATE_SCANNING);
+          client->conn_state = CONN_STATE_NOT_FOUND;
+      }
+      update_lcd();
+      return;
+  }
+
+  client = get_client_by_conn_state(CONN_STATE_SCANNING | CONN_STATE_DISCONNECTED);
+
+  if (client != NULL) {
+      client->conn_state = CONN_STATE_SCANNING;
+      status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
+
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to start scanning\n");
+      else
+        LOG_INFO("Succeeded to start scanning\n");
+
+      update_lcd();
+  }
+
+  ble_server_data.session_scan_count++;
+}
+
+void start_manual_scan()
+{
+  ble_client_data_t *client;
+
+  for (int i = 0; i < CLIENTS_NUM; i++) {
+      client = get_client_by_conn_state(CONN_STATE_NOT_FOUND);
+      client->conn_state = CONN_STATE_SCANNING;
+  }
+
+  ble_server_data.session_scan_count = 0;
+  ble_server_data.failed_scan_count = 0;
+  start_bt_scan();
 }
 
 /******************************************************************************
@@ -222,15 +262,16 @@ void handle_bt_boot()
   if (status != SL_STATUS_OK)
     LOG_ERROR("Failed to set bonding mode");
 
-  status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
-
+  status = sl_bt_sm_delete_bondings();
   if (status != SL_STATUS_OK)
-    LOG_ERROR("Failed to start scanning");
+    LOG_ERROR("Failed to delete bonding");
   else
-    LOG_INFO("Succeeded to start scanning");
+    LOG_INFO("Succeeded to delete bonding");
 
   for (int i = 0; i < CLIENTS_NUM; i++)
     ble_server_data.ble_clients[i].conn_state = CONN_STATE_SCANNING;
+
+  start_bt_scan();
 
   update_lcd();
 }
@@ -247,7 +288,7 @@ void handle_bt_scanned(sl_bt_msg_t *evt)
   status = sl_bt_scanner_stop();
 
   if (status != SL_STATUS_OK)
-    LOG_ERROR("Failed to stop scanning\n");
+    LOG_ERROR("Failed to stop scanning :: %u\n", status);
 
   ble_client_data_t *client = get_client_by_addr(evt->data.evt_scanner_scan_report.address);
 
@@ -282,16 +323,22 @@ void handle_bt_opened(sl_bt_msg_t *evt)
 {
   sl_status_t status;
 
-  ble_client_data_t *client = get_client_by_addr(evt->data.evt_scanner_scan_report.address);
+  LOG_INFO("handle_bt_opened\n");
+
+  ble_client_data_t *client = get_client_by_addr(evt->data.evt_connection_opened.address);
 
   if (client != NULL) {
-      client->conn_state = CONN_STATE_CONNECTED;
-
-      client->conn_handle = evt->data.evt_connection_opened.connection;
-
       LOG_INFO("Connected\n");
 
-      status = sl_bt_sm_increase_security(client->conn_handle);
+      client->conn_handle = evt->data.evt_connection_opened.connection;
+      client->bond_handle = evt->data.evt_connection_opened.bonding;
+      client->conn_state = CONN_STATE_CONNECTED;
+
+      if (client->bond_handle == SL_BT_INVALID_BONDING_HANDLE || client->bond_handle == 0x00)
+        status = sl_bt_sm_increase_security(client->conn_handle);
+      else
+        LOG_INFO("Already Bonded :: %x", client->bond_handle); // NEED TO HANDLE WHEN ALREADY BONDED,
+      //if handled then remove delete_bondings when disconnected
 
       if (status != SL_STATUS_OK)
         LOG_ERROR("Failed to start bonding\n");
@@ -372,6 +419,7 @@ void handle_bt_bonded(sl_bt_msg_t *evt)
   ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
   if (client != NULL) {
+      client->bond_handle = evt->data.evt_sm_confirm_bonding.bonding_handle;
       client->conn_state = CONN_STATE_BONDED;
       displayPrintf(DISPLAY_ROW_PASSKEY, "");
       displayPrintf(DISPLAY_ROW_ACTION, "");
@@ -390,21 +438,14 @@ void handle_bt_bonded(sl_bt_msg_t *evt)
  ******************************************************************************/
 void handle_bt_bonding_failed(sl_bt_msg_t *evt)
 {
-  sl_status_t status;
-
   ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
   if (client != NULL) {
+      LOG_INFO("Bonding Failed:: reason :: %u", evt->data.evt_sm_bonding_failed.reason);
+
       client->conn_state = CONN_STATE_BONDING;
       displayPrintf(DISPLAY_ROW_PASSKEY, "");
       displayPrintf(DISPLAY_ROW_ACTION, "");
-
-      status = sl_bt_sm_increase_security(client->conn_handle);
-
-      if (status != SL_STATUS_OK)
-        LOG_ERROR("Failed to start bonding\n");
-      else
-        LOG_INFO("Succeeded to start bonding\n");
 
       update_lcd();
   }
@@ -420,23 +461,24 @@ void handle_bt_bonding_failed(sl_bt_msg_t *evt)
  ******************************************************************************/
 void handle_bt_closed(sl_bt_msg_t *evt)
 {
-  sl_status_t status;
-
-  ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
+  ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_connection_closed.connection);
 
   if (client != NULL) {
       LOG_INFO("Disconnected\n");
 
-      client->conn_state = CONN_STATE_SCANNING;
-      client->conn_handle = 0;
+      sl_status_t status;
 
-      status = sl_bt_scanner_start(sl_bt_gap_1m_phy, sl_bt_scanner_discover_generic);
-
+      status = sl_bt_sm_delete_bonding(client->bond_handle);
       if (status != SL_STATUS_OK)
-        LOG_ERROR("Failed to start scanning\n");
+        LOG_ERROR("Failed to delete bonding");
       else
-        LOG_INFO("Succeeded to start scanning\n");
+        LOG_INFO("Succeeded to delete bonding");
 
+      client->conn_handle = 0x00;
+      client->bond_handle = 0x00;
+      client->conn_state = CONN_STATE_SCANNING;
+
+      start_bt_scan();
       update_lcd();
   }
 }
@@ -484,9 +526,6 @@ void handle_ble_event(sl_bt_msg_t *evt)
     case sl_bt_evt_connection_closed_id:
       handle_bt_closed(evt);
       break;
-    case sl_bt_evt_system_soft_timer_id:
-      displayUpdate(evt);
-      break;
     case sl_bt_evt_system_external_signal_id:
       handle_bt_external_signals(evt);
       break;
@@ -501,6 +540,11 @@ void handle_ble_event(sl_bt_msg_t *evt)
       break;
     case sl_bt_evt_sm_confirm_passkey_id:
       handle_bt_confirm_passkey(evt);
+      break;
+    case sl_bt_evt_system_soft_timer_id:
+      ble_server_data.session_scan_count = 0;
+      ble_server_data.failed_scan_count++;
+      displayUpdate(evt);
       break;
   } // end - switch
 } // handle_ble_event()
