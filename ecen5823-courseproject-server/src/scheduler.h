@@ -35,6 +35,7 @@ void schedulerSetI2CEventFail(void);
 void schedulerSetTimerComp0Event(void);
 void schedulerSetTimerComp1Event(void);
 
+void handle_button_events(sl_bt_msg_t *evt);
 void temperatureStateMachine(sl_bt_msg_t *evt);
 
 

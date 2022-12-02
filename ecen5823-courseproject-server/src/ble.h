@@ -15,7 +15,6 @@
 
 #define CLIENTS_NUM 2
 #define MAX_SESSION_SCANS 50
-#define MAX_I2C_FAIL_COUNT 5
 
 
 typedef enum {
@@ -54,7 +53,6 @@ typedef struct {
 
   uint8_t session_scans_count;
 
-  uint8_t lm75_sensor_error;
   uint8_t automatic_temp_control;
 
   ble_client_data_t ble_clients[CLIENTS_NUM]; // 0: Heater, 1: AC
@@ -62,16 +60,13 @@ typedef struct {
 
 
 void ble_init();
-void handle_ble_event(sl_bt_msg_t *evt);
-void start_manual_scan();
-void update_lcd();
-void update_current_temperature(int16_t temp);
-void increase_taget_temperature();
-void decrease_taget_temperature();
 void toggle_heater();
 void toggle_ac();
 void toggle_auto_feature();
-ble_server_data_t* get_ble_server_data();
-
+void update_current_temperature(int16_t temp);
+void increase_taget_temperature();
+void decrease_taget_temperature();
+void pb0_event_handle();
+void handle_ble_event(sl_bt_msg_t *evt);
 
 #endif /* SRC_BLE_H_ */

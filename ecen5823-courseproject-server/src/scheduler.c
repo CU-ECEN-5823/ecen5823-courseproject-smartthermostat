@@ -23,20 +23,20 @@
 #include "ble.h"
 #include "i2c.h"
 
-#define INCLUDE_LOG_DEBUG (1)
+#define INCLUDE_LOG_DEBUG (0)
 #include "log.h"
 
 typedef enum {
-  EVT_PB0_Pressed = 0,
-  EVT_PB1_Pressed = 1,
-  EVT_B1_Pressed = 2,
-  EVT_B2_Pressed = 4,
-  EVT_B3_Pressed = 8,
-  EVT_B4_Pressed = 16,
-  EVT_I2C_TR_SUCCESS = 32,
-  EVT_I2C_TR_FAIL = 64,
-  EVT_TIMER_COMP0_UF = 128,
-  EVT_TIMER_COMP1_UF = 256
+  EVT_PB0_Pressed = 1,
+  EVT_PB1_Pressed = 2,
+  EVT_B1_Pressed = 4,
+  EVT_B2_Pressed = 16,
+  EVT_B3_Pressed = 32,
+  EVT_B4_Pressed = 64,
+  EVT_I2C_TR_SUCCESS = 128,
+  EVT_I2C_TR_FAIL = 256,
+  EVT_TIMER_COMP0_UF = 512,
+  EVT_TIMER_COMP1_UF = 1024
 } event_type_t;
 
 typedef enum {
@@ -53,6 +53,7 @@ typedef enum {
 #define LM75_REG_PID_ADDR     (0x07)
 #define LM75_SHUTDOWN_MASK    (0x01)
 #define LM75_INTERRUPT_MASK   (0x02)
+#define MAX_I2C_FAIL_COUNT    (10)
 
 
 ftm_state_lm75_t g_next_state_lm75 = STATE_LM75_BOOT;
@@ -168,50 +169,52 @@ void schedulerSetTimerComp1Event()
   CORE_EXIT_CRITICAL();
 }
 
-void handleI2CFailedEvent()
+void handle_button_events(sl_bt_msg_t *evt)
 {
-  //  if (get_ble_server_data()->failed_i2c_count >= MAX_I2C_FAIL_COUNT) {
-  //    get_ble_server_data()->lm75_sensor_found = false;
-  //    update_lcd();
-  //  }
-  //  else {
-  //    get_ble_server_data()->failed_i2c_count++;
-  //  }
+  uint32_t event = evt->data.evt_system_external_signal.extsignals;
 
-  g_next_state_lm75 = STATE_LM75_BOOT;
-  NVIC_DisableIRQ(I2C0_IRQn);
-}
+  if (event == 0)
+    return;
 
-uint8_t handle_button_events(uint32_t event)
-{
   switch (event) {
     case EVT_B1_Pressed:
       LOG_INFO("Pressed B1");
-      toggle_ac();
-      return 1;
+      toggle_heater();
       break;
 
     case EVT_B2_Pressed:
       LOG_INFO("Pressed B2");
-      toggle_heater();
-      return 1;
+      toggle_ac();
       break;
 
     case EVT_B3_Pressed:
       LOG_INFO("Pressed B3");
       increase_taget_temperature();
-      return 1;
       break;
 
     case EVT_B4_Pressed:
       LOG_INFO("Pressed B4");
       decrease_taget_temperature();
-      return 1;
+      break;
+
+    case EVT_PB0_Pressed:
+      LOG_INFO("Pressed PB0");
+      pb0_event_handle();
+      break;
+
+    case EVT_PB1_Pressed:
+      LOG_INFO("Pressed PB1");
+      toggle_auto_feature();
       break;
     default:
-      return 0;
       break;
   }
+}
+
+void handleI2CFailedEvent()
+{
+  g_next_state_lm75 = STATE_LM75_BOOT;
+  NVIC_DisableIRQ(I2C0_IRQn);
 }
 
 void temperatureStateMachine(sl_bt_msg_t *evt)
@@ -221,7 +224,7 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
   if (event == 0)
     return;
 
-  if (handle_button_events(event))
+  if (!((event & EVT_TIMER_COMP0_UF) || (event & EVT_I2C_TR_FAIL) || (event & EVT_I2C_TR_SUCCESS)))
     return;
 
   static uint8_t i2c_data[2];
@@ -245,7 +248,7 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
 
     case STATE_LM75_WAKEUP:
       LOG_INFO("STATE_LM75_WAKEUP\n");
-      if (event & EVT_I2C_TR_FAIL || event & EVT_TIMER_COMP0_UF) {
+      if ((event & EVT_I2C_TR_FAIL) || (event & EVT_TIMER_COMP0_UF)) {
           handleI2CFailedEvent();
       }
       else if (event & EVT_I2C_TR_SUCCESS) {
@@ -257,7 +260,7 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
     case STATE_LM75_READ_TEMP:
       LOG_INFO("STATE_LM75_READ_TEMP\n");
       NVIC_DisableIRQ(I2C0_IRQn);
-      if (event & EVT_I2C_TR_FAIL || event & EVT_TIMER_COMP0_UF) {
+      if ((event & EVT_I2C_TR_FAIL) || (event & EVT_TIMER_COMP0_UF)) {
           handleI2CFailedEvent();
       }
       else if (event & EVT_I2C_TR_SUCCESS) {
@@ -278,8 +281,7 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
     case STATE_LM75_SHUTDOWN:
       LOG_INFO("STATE_LM75_SHUTDOWN\n");
       if ((event & EVT_I2C_TR_FAIL) || (event & EVT_TIMER_COMP0_UF)) {
-          g_next_state_lm75 = STATE_LM75_BOOT;
-          NVIC_DisableIRQ(I2C0_IRQn);
+          handleI2CFailedEvent();
       }
       else if (event & EVT_I2C_TR_SUCCESS) {
           g_next_state_lm75 = STATE_LM75_BOOT;

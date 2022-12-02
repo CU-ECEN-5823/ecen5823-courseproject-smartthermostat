@@ -53,7 +53,10 @@ void gpioInit()
   GPIO_PinModeSet(LED1_port, LED1_pin, gpioModePushPull, false);
 
   GPIO_PinModeSet(PB0_port, PB0_pin, gpioModeInputPullFilter, true);
-  GPIO_ExtIntConfig (PB0_port, PB0_pin, PB0_pin, true, true, true);
+  GPIO_ExtIntConfig (PB0_port, PB0_pin, PB0_pin, true, false, true);
+
+  GPIO_PinModeSet(PB1_port, PB1_pin, gpioModeInputPullFilter, true);
+  GPIO_ExtIntConfig (PB1_port, PB1_pin, PB1_pin, true, false, true);
 
   GPIO_PinModeSet(BUTTON_1_PORT, BUTTON_1_PIN, gpioModeInputPullFilter, true);
   GPIO_PinModeSet(BUTTON_2_PORT, BUTTON_2_PIN, gpioModeInputPullFilter, true);

@@ -29,17 +29,15 @@
 ble_server_data_t ble_server_data = {
     .current_temp = 0,
     .target_temp = 0,
-    .offset_temp = 1,
+    .offset_temp = 0,
     .session_scans_count = 0,
-
-    .automatic_temp_control = 1,
-    .lm75_sensor_error = 0,
+    .automatic_temp_control = 1
 };
 
 
 const uint8_t clients_addr[CLIENTS_NUM][6] = {
-    {0x49, 0x4a, 0xa6, 0x14, 0x2e, 0x84},  // Heater
-    {0x3f, 0x4a, 0xa6, 0x14, 0x2e, 0x84}  // AC
+    {0x3f, 0x4a, 0xa6, 0x14, 0x2e, 0x84},   // AC
+    {0x49, 0x4a, 0xa6, 0x14, 0x2e, 0x84}    // Heater
 };
 
 
@@ -98,7 +96,7 @@ void update_lcd()
   char dis_string[20];
 
   for (uint8_t i = 0; i < CLIENTS_NUM; i++) {
-      if (i == 1)
+      if (i == 0)
         strcpy(dis_string, "AC:");
       else
         strcpy(dis_string, "Heater:");
@@ -138,10 +136,10 @@ void update_lcd()
           break;
       }
 
-      if (i == 1)
-        displayPrintf(DISPLAY_ROW_CLIENTADDR, dis_string);
+      if (i == 0)
+        displayPrintf( DISPLAY_ROW_BTADDR2, dis_string);
       else
-        displayPrintf(DISPLAY_ROW_BTADDR2, dis_string);
+        displayPrintf(DISPLAY_ROW_CLIENTADDR, dis_string);
   }
 
   if (get_client_by_conn_state(CONN_STATE_PASSKEY) == NULL) {
@@ -150,12 +148,88 @@ void update_lcd()
   }
 
   displayPrintf(DISPLAY_ROW_NAME, "Smart Thermostat");
-  displayPrintf(DISPLAY_ROW_8, "Curr Temp : %dC", ble_server_data.current_temp);
-  displayPrintf(DISPLAY_ROW_9, "Target Temp : %dC", ble_server_data.target_temp);
+  displayPrintf(DISPLAY_ROW_8, "Curr Temp : %dF", ble_server_data.current_temp);
+  displayPrintf(DISPLAY_ROW_9, "Target Temp : %dF", ble_server_data.target_temp);
   displayPrintf(DISPLAY_ROW_ASSIGNMENT, "Course Project");
 
-  if (ble_server_data.lm75_sensor_error)
-    displayPrintf(DISPLAY_ROW_11, "Sensor Error!");
+  if (ble_server_data.automatic_temp_control)
+    displayPrintf(DISPLAY_ROW_11, "Auto On");
+  else
+    displayPrintf(DISPLAY_ROW_11, "Auto Off");
+}
+
+void set_ac_on()
+{
+  if ((ble_server_data.ble_clients[0].conn_state == CONN_STATE_BONDED) &&
+      (ble_server_data.ble_clients[0].onoff_state == 0)) {
+      ble_server_data.ble_clients[0].onoff_state = 1;
+      LOG_INFO("TURNING ON AC\n");
+      // send indication
+  }
+  update_lcd();
+}
+
+void set_ac_off()
+{
+  if ((ble_server_data.ble_clients[0].conn_state == CONN_STATE_BONDED) &&
+      (ble_server_data.ble_clients[0].onoff_state == 1)) {
+      ble_server_data.ble_clients[0].onoff_state = 0;
+      LOG_INFO("TURNING OFF AC\n");
+      // send indication
+  }
+  update_lcd();
+}
+
+void set_heater_on()
+{
+  if ((ble_server_data.ble_clients[1].conn_state == CONN_STATE_BONDED) &&
+      (ble_server_data.ble_clients[1].onoff_state == 0)) {
+      ble_server_data.ble_clients[1].onoff_state = 1;
+      LOG_INFO("TURNING ON HEATER\n");
+      // send indication
+  }
+  update_lcd();
+}
+
+void set_heater_off()
+{
+  if ((ble_server_data.ble_clients[1].conn_state == CONN_STATE_BONDED) &&
+      (ble_server_data.ble_clients[1].onoff_state == 1)) {
+      ble_server_data.ble_clients[1].onoff_state = 0;
+      LOG_INFO("TURNING OFF HEATER\n");
+      // send indication
+  }
+  update_lcd();
+}
+
+void toggle_ac()
+{
+  ble_server_data.automatic_temp_control = 0;
+
+  if (ble_server_data.ble_clients[0].onoff_state)
+    set_ac_off();
+  else
+    set_ac_on();
+}
+
+void toggle_heater()
+{
+  ble_server_data.automatic_temp_control = 0;
+
+  if (ble_server_data.ble_clients[1].onoff_state)
+    set_heater_off();
+  else
+    set_heater_on();
+}
+
+void toggle_auto_feature()
+{
+  ble_server_data.automatic_temp_control = !ble_server_data.automatic_temp_control;
+
+  if (ble_server_data.automatic_temp_control)
+    update_current_temperature(ble_server_data.current_temp);
+
+  update_lcd();
 }
 
 void update_current_temperature(int16_t temp)
@@ -167,6 +241,21 @@ void update_current_temperature(int16_t temp)
 
       if (ble_server_data.target_temp == 0)
         ble_server_data.target_temp = temp;
+
+      if (ble_server_data.automatic_temp_control) {
+          if (ble_server_data.current_temp > (ble_server_data.target_temp + ble_server_data.offset_temp)) {
+              set_ac_on();
+              set_heater_off();
+          }
+          else if (ble_server_data.current_temp < (ble_server_data.target_temp - ble_server_data.offset_temp)) {
+              set_ac_off();
+              set_heater_on();
+          }
+          else {
+              set_ac_off();
+              set_heater_off();
+          }
+      }
 
       update_lcd();
   }
@@ -182,6 +271,9 @@ void increase_taget_temperature()
   else
     ble_server_data.target_temp = 125;
 
+  ble_server_data.automatic_temp_control = 1;
+  update_current_temperature(ble_server_data.current_temp);
+
   update_lcd();
 }
 
@@ -192,26 +284,9 @@ void decrease_taget_temperature()
   else
     ble_server_data.target_temp = 1;
 
-  update_lcd();
-}
-
-void toggle_ac()
-{
-  ble_server_data.ble_clients[0].onoff_state = !ble_server_data.ble_clients[0].onoff_state;
-  ble_server_data.automatic_temp_control = 0;
-  update_lcd();
-}
-
-void toggle_heater()
-{
-  ble_server_data.ble_clients[1].onoff_state = !ble_server_data.ble_clients[1].onoff_state;
-  ble_server_data.automatic_temp_control = 0;
-  update_lcd();
-}
-
-void toggle_auto_feature()
-{
   ble_server_data.automatic_temp_control = 1;
+  update_current_temperature(ble_server_data.current_temp);
+
   update_lcd();
 }
 
@@ -260,6 +335,23 @@ void start_manual_scan()
   ble_server_data.session_scans_count = 0;
 
   start_bt_scan();
+}
+
+void pb0_event_handle()
+{
+  sl_status_t status;
+  ble_client_data_t *client = get_client_by_conn_state(CONN_STATE_PASSKEY);
+
+  if (client != NULL) {
+      status = sl_bt_sm_passkey_confirm(client->conn_handle, 1);
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to confirm passkey\n");
+      else
+        LOG_INFO("Succeeded to confirm passkey\n");
+  }
+  else {
+      start_manual_scan();
+  }
 }
 
 /******************************************************************************
@@ -426,25 +518,16 @@ void handle_bt_confirm_bonding(sl_bt_msg_t *evt)
  ******************************************************************************/
 void handle_bt_confirm_passkey(sl_bt_msg_t *evt)
 {
-  sl_status_t status;
-
   ble_client_data_t *client = get_client_by_conn_handle(evt->data.evt_sm_confirm_bonding.connection);
 
   if (client != NULL) {
       client->conn_state = CONN_STATE_PASSKEY;
       displayPrintf(DISPLAY_ROW_PASSKEY, "AC Passkey %u", evt->data.evt_sm_confirm_passkey.passkey);
       displayPrintf(DISPLAY_ROW_ACTION, "Confirm with PB0");
-      status = sl_bt_sm_passkey_confirm(client->conn_handle, 1);
-
-      if (status != SL_STATUS_OK)
-        LOG_ERROR("Failed to confirm passkey\n");
-      else
-        LOG_INFO("Succeeded to confirm passkey\n");
 
       update_lcd();
   }
 }
-
 
 /******************************************************************************
  *

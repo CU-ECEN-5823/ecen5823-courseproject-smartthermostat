@@ -170,5 +170,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
 {
   handle_ble_event(evt);
 
+  handle_button_events(evt);
+
   temperatureStateMachine(evt);
 } // sl_bt_on_event()

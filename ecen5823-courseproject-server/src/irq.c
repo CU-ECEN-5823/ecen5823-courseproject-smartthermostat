@@ -107,6 +107,11 @@ void GPIO_EVEN_IRQHandler()  {
       LOG_INFO("3 Pressed");
       schedulerSetEventB3Pressed();
   }
+
+  if( flags == (1 << PB0_pin)) {
+      LOG_INFO("PB0 Pressed");
+      schedulerSetEventPB0Pressed();
+  }
 }   //    GPIO_EVEN_IRQHandler()
 
 
@@ -126,5 +131,10 @@ void GPIO_ODD_IRQHandler()  {
   if( flags == (1 << BUTTON_4_PIN)) {
       LOG_INFO("4 Pressed");
       schedulerSetEventB4Pressed();
+  }
+
+  if( flags == (1 << PB1_pin)) {
+      LOG_INFO("PB1 Pressed");
+      schedulerSetEventPB1Pressed();
   }
 }   //    GPIO_ODD_IRQHandler()
