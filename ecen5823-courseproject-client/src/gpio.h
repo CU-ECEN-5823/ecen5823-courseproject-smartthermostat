@@ -41,12 +41,18 @@
 #define PB1_port gpioPortF
 #define PB1_pin 7
 
+#define RELAY_PORT gpioPortA
+#define RELAY_PIN 3
+
 // Function prototypes
 void gpioInit();
 void gpioLed0SetOn();
 void gpioLed0SetOff();
 void gpioLed1SetOn();
 void gpioLed1SetOff();
+
+void gpioRelayOn();
+void gpioRelayOff();
 
 void gpioSensorEnSetOn();
 void gpioSetDisplayExtcomin(bool value);
