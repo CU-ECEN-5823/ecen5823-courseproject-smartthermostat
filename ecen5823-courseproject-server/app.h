@@ -45,7 +45,7 @@
 #define APP_H
 #define LOWEST_ENERGY_MODE 2
 //#define LETIMER_ON_TIME_MS 80
-#define LETIMER_PERIOD_MS 3000
+#define LETIMER_PERIOD_MS 1000
 
 /**************************************************************************//**
  * Application Init.

@@ -26,7 +26,15 @@
 #define DEBUG
 
 
-ble_server_data_t ble_server_data;
+ble_server_data_t ble_server_data = {
+    .current_temp = 0,
+    .target_temp = 0,
+    .offset_temp = 1,
+    .session_scans_count = 0,
+
+    .automatic_temp_control = 1,
+    .lm75_sensor_error = 0,
+};
 
 
 const uint8_t clients_addr[CLIENTS_NUM][6] = {
@@ -44,21 +52,11 @@ void ble_init()
 {
   displayInit();
 
-  ble_server_data.current_temp = 0;
-  ble_server_data.target_temp = 0;
-  ble_server_data.offset_temp = 1;
-  ble_server_data.waiting_for_user_input = false;
-  ble_server_data.automatic_temp_control = true;
-  ble_server_data.session_scans_count = 0;
-  ble_server_data.failed_i2c_count = 0;
-  ble_server_data.lm75_sensor_found = true;
-
   for (int i = 0; i < CLIENTS_NUM; i++) {
       ble_server_data.ble_clients[i].conn_state = CONN_STATE_UNKNOWN;
       memcpy(ble_server_data.ble_clients[i].addr.addr, clients_addr[i], 6);
   }
 }
-
 
 ble_client_data_t* get_client_by_addr(bd_addr addr)
 {
@@ -80,7 +78,6 @@ ble_client_data_t* get_client_by_conn_handle(uint8_t conn_handle)
   return NULL;
 }
 
-
 ble_client_data_t* get_client_by_conn_state(uint32_t conn_state)
 {
   for (int i = 0; i < CLIENTS_NUM; i++) {
@@ -98,94 +95,124 @@ ble_client_data_t* get_client_by_conn_state(uint32_t conn_state)
  ******************************************************************************/
 void update_lcd()
 {
-  char ac_string[20] = "AC: ";
-  char heater_string[20] = "Heater: ";
+  char dis_string[20];
 
-  switch (ble_server_data.ble_clients[0].conn_state)
-  {
-    case CONN_STATE_UNKNOWN:
-      strcat(ac_string, "UNKNOWN");
-      break;
-    case CONN_STATE_SCANNING:
-      strcat(ac_string, "SCANNING");
-      break;
-    case CONN_STATE_CONNECTING:
-      strcat(ac_string, "CONNECTING");
-      break;
-    case CONN_STATE_CONNECTED:
-      strcat(ac_string, "CONNECTED");
-      break;
-    case CONN_STATE_BONDING:
-    case CONN_STATE_PASSKEY:
-      strcat(ac_string, "BONDING");
-      break;
-    case CONN_STATE_BONDED:
-      if (ble_server_data.ble_clients[0].onoff_state)
-        strcat(ac_string, "ON");
+  for (uint8_t i = 0; i < CLIENTS_NUM; i++) {
+      if (i == 1)
+        strcpy(dis_string, "AC:");
       else
-        strcat(ac_string, "OFF");
-      break;
-    case CONN_STATE_NOT_BONDED:
-      strcat(ac_string, "NOT BOND");
-      break;
-    case CONN_STATE_DISCONNECTED:
-      strcat(ac_string, "DISCONNECTED");
-      break;
-    case CONN_STATE_NOT_FOUND:
-      strcat(ac_string, "NOT FOUND");
-      break;
+        strcpy(dis_string, "Heater:");
+
+      switch (ble_server_data.ble_clients[i].conn_state)
+      {
+        case CONN_STATE_UNKNOWN:
+          strcat(dis_string, "UNKNOWN");
+          break;
+        case CONN_STATE_SCANNING:
+          strcat(dis_string, "SCANNING");
+          break;
+        case CONN_STATE_CONNECTING:
+          strcat(dis_string, "CONNECTING");
+          break;
+        case CONN_STATE_CONNECTED:
+          strcat(dis_string, "CONNECTED");
+          break;
+        case CONN_STATE_BONDING:
+        case CONN_STATE_PASSKEY:
+          strcat(dis_string, "BONDING");
+          break;
+        case CONN_STATE_BONDED:
+          if (ble_server_data.ble_clients[i].onoff_state)
+            strcat(dis_string, "ON");
+          else
+            strcat(dis_string, "OFF");
+          break;
+        case CONN_STATE_NOT_BONDED:
+          strcat(dis_string, "NOT BOND");
+          break;
+        case CONN_STATE_DISCONNECTED:
+          strcat(dis_string, "DISCONNECTED");
+          break;
+        case CONN_STATE_NOT_FOUND:
+          strcat(dis_string, "NOT FOUND");
+          break;
+      }
+
+      if (i == 1)
+        displayPrintf(DISPLAY_ROW_CLIENTADDR, dis_string);
+      else
+        displayPrintf(DISPLAY_ROW_BTADDR2, dis_string);
   }
 
-  switch (ble_server_data.ble_clients[1].conn_state)
-  {
-    case CONN_STATE_UNKNOWN:
-      strcat(heater_string, "UNKNOWN");
-      break;
-    case CONN_STATE_SCANNING:
-      strcat(heater_string, "SCANNING");
-      break;
-    case CONN_STATE_CONNECTING:
-      strcat(heater_string, "CONNECTING");
-      break;
-    case CONN_STATE_CONNECTED:
-      strcat(heater_string, "CONNECTED");
-      break;
-    case CONN_STATE_BONDING:
-    case CONN_STATE_PASSKEY:
-      strcat(heater_string, "BONDING");
-      break;
-    case CONN_STATE_BONDED:
-      if (ble_server_data.ble_clients[1].onoff_state)
-        strcat(heater_string, "ON");
-      else
-        strcat(heater_string, "OFF");
-      break;
-    case CONN_STATE_NOT_BONDED:
-      strcat(heater_string, "NOT BOND");
-      break;
-    case CONN_STATE_DISCONNECTED:
-      strcat(heater_string, "DISCONNECTED");
-      break;
-    case CONN_STATE_NOT_FOUND:
-      strcat(heater_string, "NOT FOUND");
-      break;
-  }
-
-  if (ble_server_data.ble_clients[0].conn_state != CONN_STATE_PASSKEY &&
-      ble_server_data.ble_clients[1].conn_state != CONN_STATE_PASSKEY) {
+  if (get_client_by_conn_state(CONN_STATE_PASSKEY) == NULL) {
       displayPrintf(DISPLAY_ROW_PASSKEY, "");
       displayPrintf(DISPLAY_ROW_ACTION, "");
   }
 
   displayPrintf(DISPLAY_ROW_NAME, "Smart Thermostat");
-  displayPrintf(DISPLAY_ROW_BTADDR2, heater_string);
-  displayPrintf(DISPLAY_ROW_CLIENTADDR, ac_string);
   displayPrintf(DISPLAY_ROW_8, "Curr Temp : %dC", ble_server_data.current_temp);
   displayPrintf(DISPLAY_ROW_9, "Target Temp : %dC", ble_server_data.target_temp);
   displayPrintf(DISPLAY_ROW_ASSIGNMENT, "Course Project");
 
-  if (!get_ble_server_data()->lm75_sensor_found)
-    displayPrintf(DISPLAY_ROW_11, "Sensor Not Found!");
+  if (ble_server_data.lm75_sensor_error)
+    displayPrintf(DISPLAY_ROW_11, "Sensor Error!");
+}
+
+void update_current_temperature(int16_t temp)
+{
+  if (temp > 0 && temp <= 125) {
+      LOG_INFO("Current temperature = %d", temp);
+
+      ble_server_data.current_temp = temp;
+
+      if (ble_server_data.target_temp == 0)
+        ble_server_data.target_temp = temp;
+
+      update_lcd();
+  }
+  else {
+      LOG_ERROR("Invalid temperature range!");
+  }
+}
+
+void increase_taget_temperature()
+{
+  if (ble_server_data.target_temp < 125)
+    ble_server_data.target_temp++;
+  else
+    ble_server_data.target_temp = 125;
+
+  update_lcd();
+}
+
+void decrease_taget_temperature()
+{
+  if (ble_server_data.target_temp > 1)
+    ble_server_data.target_temp--;
+  else
+    ble_server_data.target_temp = 1;
+
+  update_lcd();
+}
+
+void toggle_ac()
+{
+  ble_server_data.ble_clients[0].onoff_state = !ble_server_data.ble_clients[0].onoff_state;
+  ble_server_data.automatic_temp_control = 0;
+  update_lcd();
+}
+
+void toggle_heater()
+{
+  ble_server_data.ble_clients[1].onoff_state = !ble_server_data.ble_clients[1].onoff_state;
+  ble_server_data.automatic_temp_control = 0;
+  update_lcd();
+}
+
+void toggle_auto_feature()
+{
+  ble_server_data.automatic_temp_control = 1;
+  update_lcd();
 }
 
 void start_bt_scan()
@@ -217,8 +244,6 @@ void start_bt_scan()
 
       if (status != SL_STATUS_OK)
         LOG_ERROR("Failed to start scanning\n");
-      else
-        LOG_INFO("Succeeded to start scanning\n");
 
       update_lcd();
   }
@@ -500,26 +525,6 @@ void handle_bt_closed(sl_bt_msg_t *evt)
   update_lcd();
 }
 
-void handle_bt_external_signals(sl_bt_msg_t *evt) {
-  //sl_status_t sl_status;
-
-  if((evt->data.evt_system_external_signal.extsignals == evtB1_Pressed))  {
-      LOG_INFO("Pressed 1");
-  }
-
-  if((evt->data.evt_system_external_signal.extsignals == evtB2_Pressed))  {
-      LOG_INFO("Pressed 2");
-  }
-
-  if((evt->data.evt_system_external_signal.extsignals == evtB3_Pressed))  {
-      LOG_INFO("Pressed 3");
-  }
-
-  if((evt->data.evt_system_external_signal.extsignals == evtB4_Pressed))  {
-      LOG_INFO("Pressed 4");
-  }
-}
-
 /******************************************************************************
  *
  * @brief Event handler for BLE events
@@ -542,9 +547,6 @@ void handle_ble_event(sl_bt_msg_t *evt)
       break;
     case sl_bt_evt_connection_closed_id:
       handle_bt_closed(evt);
-      break;
-    case sl_bt_evt_system_external_signal_id:
-      handle_bt_external_signals(evt);
       break;
     case sl_bt_evt_sm_bonded_id:
       handle_bt_bonded(evt);

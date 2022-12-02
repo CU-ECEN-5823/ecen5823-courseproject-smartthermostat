@@ -23,21 +23,6 @@
 
 #include "sl_bt_api.h"
 
-
-typedef enum {
-  evtPB0_Pressed = 0,
-  evtPB1_Pressed = 1,
-  evtB1_Pressed = 2,
-  evtB2_Pressed = 4,
-  evtB3_Pressed = 8,
-  evtB4_Pressed = 16,
-  EVT_I2C_TR_SUCCESS = 32,
-  EVT_I2C_TR_FAIL = 64,
-  EVT_TIMER_COMP0_UF = 128,
-  EVT_TIMER_COMP1_UF = 256
-} event_type_t;
-
-
 // Function prototypes
 void schedulerSetEventPB0Pressed(void);
 void schedulerSetEventPB1Pressed(void);

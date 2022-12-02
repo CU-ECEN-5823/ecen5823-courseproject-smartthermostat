@@ -22,7 +22,7 @@
 #include "gpio.h"
 #include "scheduler.h"
 
-#define INCLUDE_LOG_DEBUG (1)
+#define INCLUDE_LOG_DEBUG (0)
 #include "log.h"
 
 
@@ -80,15 +80,12 @@ void I2C0_IRQHandler(void) {
   I2C_TransferReturn_TypeDef transferStatus;
   transferStatus = I2C_Transfer(I2C0);
 
-  // set I2C scheduler on successful transfer
   if (transferStatus == i2cTransferDone) {
       schedulerSetI2CEventComplete ();
   }
-  // call scheduler to reset the state machine if I2C transfer fails
   else if (transferStatus < 0) {
-      schedulerSetI2CEventFail ();
-      //     schedulerReset ();
       LOG_ERROR("%d", transferStatus);
+      schedulerSetI2CEventFail ();
   }
 } // I2C0_IRQHandler()
 
@@ -99,20 +96,17 @@ void GPIO_EVEN_IRQHandler()  {
 
   GPIO_IntClear(flags);
 
-  //LOG_INFO("Flags = %d",flags);
+  LOG_INFO("Flags = %d",flags);
 
-  if( flags == (1<<BUTTON_1_PIN)) {
-      //      LOG_INFO("1 Pressed");
+  if( flags == (1 << BUTTON_1_PIN)) {
+      LOG_INFO("1 Pressed");
       schedulerSetEventB1Pressed();
   }
 
-  if( flags == (1<<BUTTON_3_PIN)) {
-      //      LOG_INFO("3 Pressed");
+  if( flags == (1 << BUTTON_3_PIN)) {
+      LOG_INFO("3 Pressed");
       schedulerSetEventB3Pressed();
   }
-
-  //schedulerSetEventPB0Pressed();
-
 }   //    GPIO_EVEN_IRQHandler()
 
 
@@ -122,18 +116,15 @@ void GPIO_ODD_IRQHandler()  {
 
   GPIO_IntClear(flags);
 
-  //LOG_INFO("Flags = %d",flags);
+  LOG_INFO("Flags = %d",flags);
 
-  if( flags == (1<<BUTTON_2_PIN)) {
-      //      LOG_INFO("2 Pressed");
+  if( flags == (1 << BUTTON_2_PIN)) {
+      LOG_INFO("2 Pressed");
       schedulerSetEventB2Pressed();
   }
 
-  if( flags == (1<<BUTTON_4_PIN)) {
-      //      LOG_INFO("4 Pressed");
+  if( flags == (1 << BUTTON_4_PIN)) {
+      LOG_INFO("4 Pressed");
       schedulerSetEventB4Pressed();
   }
-
-  //schedulerSetEventPB1Pressed();
-
 }   //    GPIO_ODD_IRQHandler()

@@ -14,7 +14,7 @@
 #include "sl_bluetooth.h"
 
 #define CLIENTS_NUM 2
-#define MAX_SESSION_SCANS 100
+#define MAX_SESSION_SCANS 50
 #define MAX_I2C_FAIL_COUNT 5
 
 
@@ -48,16 +48,14 @@ typedef struct {
   bd_addr addr;
   uint8_t addr_type;
 
-  int8_t current_temp;
-  int8_t target_temp;
+  int16_t current_temp;
+  int16_t target_temp;
   uint8_t offset_temp;
-  bool automatic_temp_control;
-  bool waiting_for_user_input;
 
   uint8_t session_scans_count;
 
-  uint8_t failed_i2c_count;
-  bool lm75_sensor_found;
+  uint8_t lm75_sensor_error;
+  uint8_t automatic_temp_control;
 
   ble_client_data_t ble_clients[CLIENTS_NUM]; // 0: Heater, 1: AC
 }ble_server_data_t;
@@ -67,6 +65,12 @@ void ble_init();
 void handle_ble_event(sl_bt_msg_t *evt);
 void start_manual_scan();
 void update_lcd();
+void update_current_temperature(int16_t temp);
+void increase_taget_temperature();
+void decrease_taget_temperature();
+void toggle_heater();
+void toggle_ac();
+void toggle_auto_feature();
 ble_server_data_t* get_ble_server_data();
 
 

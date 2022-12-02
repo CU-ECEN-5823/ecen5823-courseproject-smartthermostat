@@ -143,7 +143,7 @@ SL_WEAK void app_init(void)
 
   init_LFXO();
 
-  init_LETIMER0(0, 3000);
+  init_LETIMER0(0, LETIMER_PERIOD_MS);
 } // app_init()
 
 
@@ -170,6 +170,5 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
 {
   handle_ble_event(evt);
 
-  if (get_ble_server_data()->lm75_sensor_found)
-    temperatureStateMachine(evt);
+  temperatureStateMachine(evt);
 } // sl_bt_on_event()

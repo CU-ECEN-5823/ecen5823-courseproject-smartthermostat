@@ -26,12 +26,24 @@
 #define INCLUDE_LOG_DEBUG (1)
 #include "log.h"
 
+typedef enum {
+  EVT_PB0_Pressed = 0,
+  EVT_PB1_Pressed = 1,
+  EVT_B1_Pressed = 2,
+  EVT_B2_Pressed = 4,
+  EVT_B3_Pressed = 8,
+  EVT_B4_Pressed = 16,
+  EVT_I2C_TR_SUCCESS = 32,
+  EVT_I2C_TR_FAIL = 64,
+  EVT_TIMER_COMP0_UF = 128,
+  EVT_TIMER_COMP1_UF = 256
+} event_type_t;
 
 typedef enum {
-  STATE_LM75_IDLE = 0,
-  STATE_LM75_CONFIG,
-  STATE_LM75_SELECT_TEMP_REG,
+  STATE_LM75_BOOT = 0,
+  STATE_LM75_WAKEUP,
   STATE_LM75_READ_TEMP,
+  STATE_LM75_SHUTDOWN
 }ftm_state_lm75_t;
 
 
@@ -43,7 +55,7 @@ typedef enum {
 #define LM75_INTERRUPT_MASK   (0x02)
 
 
-ftm_state_lm75_t g_next_state_lm75 = STATE_LM75_IDLE;
+ftm_state_lm75_t g_next_state_lm75 = STATE_LM75_BOOT;
 
 
 void schedulerSetEventPB0Pressed()
@@ -51,7 +63,7 @@ void schedulerSetEventPB0Pressed()
   CORE_DECLARE_IRQ_STATE;
   CORE_ENTER_CRITICAL();
 
-  sl_bt_external_signal(evtPB0_Pressed);
+  sl_bt_external_signal(EVT_PB0_Pressed);
 
   CORE_EXIT_CRITICAL();
 }
@@ -62,7 +74,7 @@ void schedulerSetEventPB1Pressed()
   CORE_DECLARE_IRQ_STATE;
   CORE_ENTER_CRITICAL();
 
-  sl_bt_external_signal(evtPB1_Pressed);
+  sl_bt_external_signal(EVT_PB1_Pressed);
 
   CORE_EXIT_CRITICAL();
 }
@@ -73,7 +85,7 @@ void schedulerSetEventB1Pressed()
   CORE_DECLARE_IRQ_STATE;
   CORE_ENTER_CRITICAL();
 
-  sl_bt_external_signal(evtB1_Pressed);
+  sl_bt_external_signal(EVT_B1_Pressed);
 
   CORE_EXIT_CRITICAL();
 }
@@ -84,7 +96,7 @@ void schedulerSetEventB2Pressed()
   CORE_DECLARE_IRQ_STATE;
   CORE_ENTER_CRITICAL();
 
-  sl_bt_external_signal(evtB2_Pressed);
+  sl_bt_external_signal(EVT_B2_Pressed);
 
   CORE_EXIT_CRITICAL();
 }
@@ -95,7 +107,7 @@ void schedulerSetEventB3Pressed()
   CORE_DECLARE_IRQ_STATE;
   CORE_ENTER_CRITICAL();
 
-  sl_bt_external_signal(evtB3_Pressed);
+  sl_bt_external_signal(EVT_B3_Pressed);
 
   CORE_EXIT_CRITICAL();
 }
@@ -106,7 +118,7 @@ void schedulerSetEventB4Pressed()
   CORE_DECLARE_IRQ_STATE;
   CORE_ENTER_CRITICAL();
 
-  sl_bt_external_signal(evtB4_Pressed);
+  sl_bt_external_signal(EVT_B4_Pressed);
 
   CORE_EXIT_CRITICAL();
 }
@@ -158,35 +170,68 @@ void schedulerSetTimerComp1Event()
 
 void handleI2CFailedEvent()
 {
-  if (get_ble_server_data()->failed_i2c_count >= MAX_I2C_FAIL_COUNT) {
-    get_ble_server_data()->lm75_sensor_found = false;
-    update_lcd();
-  }
-  else {
-    get_ble_server_data()->failed_i2c_count++;
-  }
+  //  if (get_ble_server_data()->failed_i2c_count >= MAX_I2C_FAIL_COUNT) {
+  //    get_ble_server_data()->lm75_sensor_found = false;
+  //    update_lcd();
+  //  }
+  //  else {
+  //    get_ble_server_data()->failed_i2c_count++;
+  //  }
 
-  g_next_state_lm75 = STATE_LM75_IDLE;
+  g_next_state_lm75 = STATE_LM75_BOOT;
   NVIC_DisableIRQ(I2C0_IRQn);
 }
 
+uint8_t handle_button_events(uint32_t event)
+{
+  switch (event) {
+    case EVT_B1_Pressed:
+      LOG_INFO("Pressed B1");
+      toggle_ac();
+      return 1;
+      break;
+
+    case EVT_B2_Pressed:
+      LOG_INFO("Pressed B2");
+      toggle_heater();
+      return 1;
+      break;
+
+    case EVT_B3_Pressed:
+      LOG_INFO("Pressed B3");
+      increase_taget_temperature();
+      return 1;
+      break;
+
+    case EVT_B4_Pressed:
+      LOG_INFO("Pressed B4");
+      decrease_taget_temperature();
+      return 1;
+      break;
+    default:
+      return 0;
+      break;
+  }
+}
 
 void temperatureStateMachine(sl_bt_msg_t *evt)
 {
   uint32_t event = evt->data.evt_system_external_signal.extsignals;
 
-  if (event != EVT_I2C_TR_SUCCESS && event != EVT_I2C_TR_FAIL &&
-      event != EVT_TIMER_COMP0_UF)
+  if (event == 0)
+    return;
+
+  if (handle_button_events(event))
     return;
 
   static uint8_t i2c_data[2];
 
   switch(g_next_state_lm75)
   {
-    case STATE_LM75_IDLE:
-      LOG_INFO("STATE_LM75_IDLE\n");
+    case STATE_LM75_BOOT:
+      LOG_INFO("STATE_LM75_BOOT\n");
       if (event & EVT_TIMER_COMP0_UF) {
-          g_next_state_lm75 = STATE_LM75_CONFIG;
+          g_next_state_lm75 = STATE_LM75_WAKEUP;
           sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
 
           NVIC_ClearPendingIRQ(I2C0_IRQn);
@@ -198,46 +243,48 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
       }
       break;
 
-    case STATE_LM75_CONFIG:
-      LOG_INFO("STATE_LM75_CONFIG\n");
-      if (event & EVT_I2C_TR_FAIL) {
-          handleI2CFailedEvent();
-      }
-      else if (event & EVT_I2C_TR_SUCCESS) {
-          g_next_state_lm75 = STATE_LM75_SELECT_TEMP_REG;
-
-          i2c_data[0] = (uint8_t)LM75_REG_TEMP_ADDR;
-          I2C0_write(LM75_DEV_ADDR, i2c_data, 1);
-      }
-      break;
-
-    case STATE_LM75_SELECT_TEMP_REG:
-      LOG_INFO("STATE_LM75_SELECT_TEMP_REG\n");
-      if (event & EVT_I2C_TR_FAIL) {
+    case STATE_LM75_WAKEUP:
+      LOG_INFO("STATE_LM75_WAKEUP\n");
+      if (event & EVT_I2C_TR_FAIL || event & EVT_TIMER_COMP0_UF) {
           handleI2CFailedEvent();
       }
       else if (event & EVT_I2C_TR_SUCCESS) {
           g_next_state_lm75 = STATE_LM75_READ_TEMP;
-
-          I2C0_read((uint8_t)LM75_DEV_ADDR, i2c_data, 2);
+          I2C0_read(LM75_DEV_ADDR, LM75_REG_TEMP_ADDR, i2c_data, 2);
       }
-
       break;
+
     case STATE_LM75_READ_TEMP:
       LOG_INFO("STATE_LM75_READ_TEMP\n");
-      g_next_state_lm75 = STATE_LM75_IDLE;
       NVIC_DisableIRQ(I2C0_IRQn);
-      if (event & EVT_I2C_TR_FAIL) {
+      if (event & EVT_I2C_TR_FAIL || event & EVT_TIMER_COMP0_UF) {
           handleI2CFailedEvent();
       }
       else if (event & EVT_I2C_TR_SUCCESS) {
-          sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
-          uint16_t temp_val = i2c_data[0] << 8 | i2c_data[1];
-          temp_val = ((temp_val * 9) / (5 *256)) + 32;
-          get_ble_server_data()->current_temp = temp_val;
-          update_lcd();
+          g_next_state_lm75 = STATE_LM75_SHUTDOWN;
+          uint16_t i2c_data16 = i2c_data[0] << 8 | i2c_data[1];
+          int16_t temp_val = (int16_t)((i2c_data16 * 9) / (5 *256)) + 32;
+
+          update_current_temperature(temp_val);
+
+          i2c_data[0] = (uint8_t)LM75_REG_CONG_ADDR;
+          i2c_data[1] = (uint8_t)LM75_INTERRUPT_MASK | LM75_SHUTDOWN_MASK;
+          I2C0_write(LM75_DEV_ADDR, i2c_data, 2);
 
           LOG_INFO("Temperature: %u\n", temp_val);
+      }
+      break;
+
+    case STATE_LM75_SHUTDOWN:
+      LOG_INFO("STATE_LM75_SHUTDOWN\n");
+      if ((event & EVT_I2C_TR_FAIL) || (event & EVT_TIMER_COMP0_UF)) {
+          g_next_state_lm75 = STATE_LM75_BOOT;
+          NVIC_DisableIRQ(I2C0_IRQn);
+      }
+      else if (event & EVT_I2C_TR_SUCCESS) {
+          g_next_state_lm75 = STATE_LM75_BOOT;
+          sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
+          NVIC_DisableIRQ(I2C0_IRQn);
       }
       break;
   }

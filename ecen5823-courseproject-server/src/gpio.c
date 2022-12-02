@@ -60,10 +60,10 @@ void gpioInit()
   GPIO_PinModeSet(BUTTON_3_PORT, BUTTON_3_PIN, gpioModeInputPullFilter, true);
   GPIO_PinModeSet(BUTTON_4_PORT, BUTTON_4_PIN, gpioModeInputPullFilter, true);
 
-  GPIO_ExtIntConfig(BUTTON_1_PORT, BUTTON_1_PIN, BUTTON_1_PIN, true, true, true);
-  GPIO_ExtIntConfig(BUTTON_2_PORT, BUTTON_2_PIN, BUTTON_2_PIN, true, true, true);
-  GPIO_ExtIntConfig(BUTTON_3_PORT, BUTTON_3_PIN, BUTTON_3_PIN, true, true, true);
-  GPIO_ExtIntConfig(BUTTON_4_PORT, BUTTON_4_PIN, BUTTON_4_PIN, true, true, true);
+  GPIO_ExtIntConfig(BUTTON_1_PORT, BUTTON_1_PIN, BUTTON_1_PIN, true, false, true);
+  GPIO_ExtIntConfig(BUTTON_2_PORT, BUTTON_2_PIN, BUTTON_2_PIN, true, false, true);
+  GPIO_ExtIntConfig(BUTTON_3_PORT, BUTTON_3_PIN, BUTTON_3_PIN, true, false, true);
+  GPIO_ExtIntConfig(BUTTON_4_PORT, BUTTON_4_PIN, BUTTON_4_PIN, true, false, true);
 
 } // gpioInit()
 

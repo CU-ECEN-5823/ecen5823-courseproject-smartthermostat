@@ -52,7 +52,7 @@ int I2C0_write(uint16_t dev_addr, uint8_t *data, uint8_t data_len);
  * @return    Returns non-zero value on fail and 0 on success.
  *
  ******************************************************************************/
-int I2C0_read(uint16_t dev_addr, uint8_t *data, uint8_t data_len);
+int I2C0_read(uint16_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t data_len);
 
 
 #endif /* SRC_I2C_H_ */

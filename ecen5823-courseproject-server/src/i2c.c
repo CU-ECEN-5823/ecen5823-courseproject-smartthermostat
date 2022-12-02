@@ -98,16 +98,18 @@ int I2C0_write(uint16_t dev_addr, uint8_t *data, uint8_t data_len)
  * @return    Returns non-zero value on fail and 0 on success.
  *
  ******************************************************************************/
-int I2C0_read(uint16_t dev_addr, uint8_t *data, uint8_t data_len)
+int I2C0_read(uint16_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t data_len)
 {
   I2C_TransferReturn_TypeDef transferStatus;
 
   I2C0_init();
 
   transferSequence.addr = dev_addr << 1;
-  transferSequence.buf[0].data = data;
-  transferSequence.buf[0].len = data_len;
-  transferSequence.flags = I2C_FLAG_READ;
+  transferSequence.buf[0].data = &reg_addr;
+  transferSequence.buf[0].len = 1;
+  transferSequence.buf[1].data = data;
+  transferSequence.buf[1].len = data_len;
+  transferSequence.flags = I2C_FLAG_WRITE_READ;
   NVIC_EnableIRQ(I2C0_IRQn);
   transferStatus = I2C_TransferInit (I2C0, &transferSequence);
 
