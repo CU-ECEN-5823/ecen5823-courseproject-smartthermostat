@@ -23,6 +23,9 @@
 
 #include "gpio.h"
 
+#define INCLUDE_LOG_DEBUG (1)
+#include "log.h"
+
 // Student Edit: Define these, 0's are placeholder values.
 // See the radio board user guide at https://www.silabs.com/documents/login/user-guides/ug279-brd4104a-user-guide.pdf
 // and GPIO documentation at https://siliconlabs.github.io/Gecko_SDK_Doc/efm32g/html/group__GPIO.html
@@ -47,8 +50,21 @@ void gpioInit(){
 	GPIO_PinModeSet(PB1_port, PB1_pin, gpioModeInputPullFilter, true);
 	GPIO_ExtIntConfig (PB1_port, PB1_pin, PB1_pin, true, true, true);
 
+	GPIO_DriveStrengthSet(RELAY_PORT, gpioDriveStrengthStrongAlternateStrong);
+	GPIO_PinModeSet(RELAY_PORT, RELAY_PIN, gpioModePushPull, false);
+
 } // gpioInit()
 
+
+void gpioRelayOn()  {
+  LOG_INFO("Relay ON");
+  GPIO_PinOutSet(RELAY_PORT,RELAY_PIN);
+}
+
+void gpioRelayOff() {
+  LOG_INFO("Relay OFF");
+  GPIO_PinOutClear(RELAY_PORT,RELAY_PIN);
+}
 
 void gpioLed0SetOn(){
 	GPIO_PinOutSet(LED0_port,LED0_pin);

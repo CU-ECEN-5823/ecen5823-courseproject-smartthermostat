@@ -175,6 +175,7 @@ SL_WEAK void app_init(void)
   gpioInit();
   osc_init();
   IRQ_Init();
+  gpioRelayOff();
 
 } // app_init()
 
