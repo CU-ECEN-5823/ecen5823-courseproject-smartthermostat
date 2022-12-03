@@ -1,16 +1,15 @@
 /*******************************************************************************
- * @file        i2c.c
- * @brief       Has functions to send and receive data over I2C0 and interrupt
- *              based approach is used. See irq.c on how to handle when I2C0
- *              interrupt occurs.
- * @author      Ajay Kandagal, ajka9053@colorado.edu
+ * @file    i2c.c
+ * @brief   Has functions to send and receive data over I2C0 and interrupt based
+ *          approach is used. See irq.c on how to handle when I2C0 interrupt
+ *          occurs.
  *
- * @due         Nov 27, 2022
- * @project     ecen5823-courseproject-server
+ * @author  Ajay Kandagal, ajka9053@colorado.edu
+ * @date    Nov 27, 2022
  *
- * @institution University of Colorado Boulder (UCB)
- * @course      ECEN 5823-001: IoT Embedded Firmware (Fall 2022)
- * @instructor  David Sluiter
+ * @editor  Dec 2, 2022, Ajay Kandagal
+ * @change  Rewrote I2C read to do the register address writing and reading
+ *          from it in a single transaction.
  *
  ******************************************************************************/
 #include <sl_i2cspm.h>

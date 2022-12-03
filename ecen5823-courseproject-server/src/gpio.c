@@ -94,10 +94,12 @@ void gpioLed1SetOff()
   GPIO_PinOutClear(LED1_port,LED1_pin);
 }
 
+
 void gpioSensorEnSetOn()
 {
   GPIO_PinOutSet(LCD_EN_PORT,LCD_EN_PIN);
 }
+
 
 void gpioSetDisplayExtcomin(bool extcomin_state)
 {
@@ -106,9 +108,3 @@ void gpioSetDisplayExtcomin(bool extcomin_state)
   else
     GPIO_PinOutClear(EXTCOMIN_PORT, EXTCOMIN_PIN);
 }
-
-
-
-
-
-

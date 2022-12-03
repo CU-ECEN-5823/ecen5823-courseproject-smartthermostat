@@ -1,16 +1,11 @@
 /*******************************************************************************
- * @file        timers.c
- * @brief       Has functions to set the LETIMER0 to generate interrupts with
- *              COMP0 and COMP1 overflow. Also contains to generate required
- *              delay using COMP1 interrupts.
- * @author      Ajay Kandagal, ajka9053@colorado.edu
+ * @file    timers.c
+ * @brief   Has functions to set the LETIMER0 to generate interrupts with COMP0
+ *          and COMP1 overflow. Also contains to generate required delay using
+ *          COMP1 interrupts.
  *
- * @due         Nov 27, 2022
- * @project     ecen5823-courseproject-server
- *
- * @institution University of Colorado Boulder (UCB)
- * @course      ECEN 5823-001: IoT Embedded Firmware (Fall 2022)
- * @instructor  David Sluiter
+ * @author  Ajay Kandagal, ajka9053@colorado.edu
+ * @date    Nov 27, 2022
  *
  ******************************************************************************/
 #include "em_letimer.h"

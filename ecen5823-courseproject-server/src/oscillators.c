@@ -1,14 +1,9 @@
 /*******************************************************************************
- * @file        oscillators.c
- * @brief       Has functions to initialize LXFO and ULFRCO.
- * @author      Ajay Kandagal, ajka9053@colorado.edu
+ * @file    oscillators.c
+ * @brief   Has functions to initialize LXFO and ULFRCO.
  *
- * @due         Nov 27, 2022
- * @project     ecen5823-courseproject-server
- *
- * @institution University of Colorado Boulder (UCB)
- * @course      ECEN 5823-001: IoT Embedded Firmware (Fall 2022)
- * @instructor  David Sluiter
+ * @author  Ajay Kandagal, ajka9053@colorado.edu
+ * @date    Nov 27, 2022
  *
  ******************************************************************************/
 #include "oscillators.h"
@@ -49,4 +44,3 @@ void init_LFXO()
 
   CMU_ClockEnable(cmuClock_LETIMER0, true);
 }
-

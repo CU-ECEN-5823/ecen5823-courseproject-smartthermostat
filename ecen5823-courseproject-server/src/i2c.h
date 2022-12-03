@@ -1,19 +1,17 @@
 /*******************************************************************************
- * @file        i2c.h
- * @brief       Has functions to send and receive data over I2C0 and interrupt
- *              based approach is used. See irq.c on how to handle when I2C0
- *              interrupt occurs.
- * @author      Ajay Kandagal, ajka9053@colorado.edu
+ * @file    i2c.h
+ * @brief   Has functions to send and receive data over I2C0 and interrupt based
+ *          approach is used. See irq.c on how to handle when I2C0 interrupt
+ *          occurs.
  *
- * @due         Nov 27, 2022
- * @project     ecen5823-courseproject-server
+ * @author  Ajay Kandagal, ajka9053@colorado.edu
+ * @date    Nov 27, 2022
  *
- * @institution University of Colorado Boulder (UCB)
- * @course      ECEN 5823-001: IoT Embedded Firmware (Fall 2022)
- * @instructor  David Sluiter
+ * @editor  Dec 2, 2022, Ajay Kandagal
+ * @change  Rewrote I2C read to do the register address writing and reading
+ *          from it in a single transaction.
  *
  ******************************************************************************/
-
 #ifndef SRC_I2C_H_
 #define SRC_I2C_H_
 
@@ -42,10 +40,11 @@ int I2C0_write(uint16_t dev_addr, uint8_t *data, uint8_t data_len);
 
 
 /*******************************************************************************
- * Reads data over I2C of given length. On I2C read complete, the interrupt is
- * generated and is handled in irq.c
+ * First writes the reg _addr and the reads the data over I2C of given length.
+ * On I2C read complete, the interrupt is generated and is handled in irq.c
  *
  * @param     dev_addr  I2C peripheral device address
+ * @param     reg_addr  Register address from which data to read
  * @param     *data     Data to be written
  * @param     data_len  Length of *data array
  *

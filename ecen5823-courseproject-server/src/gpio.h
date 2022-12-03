@@ -42,6 +42,7 @@
 #define PB1_port gpioPortF
 #define PB1_pin 7
 
+
 // Function prototypes
 void gpioInit();
 void gpioLed0SetOn();
@@ -50,9 +51,6 @@ void gpioLed1SetOn();
 void gpioLed1SetOff();
 void gpioSensorEnSetOn();
 void gpioSetDisplayExtcomin(bool extcomin_state);
-
-
-
 
 
 #endif /* SRC_GPIO_H_ */

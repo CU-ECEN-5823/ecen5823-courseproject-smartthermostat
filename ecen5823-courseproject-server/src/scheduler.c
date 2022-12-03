@@ -1,19 +1,18 @@
 /*******************************************************************************
- * @file        scheduler.c
- * @brief       Process the events and handles the LM75 temperature sensor state
- *              machine.
- * @author      Amey More, Amey.More@colorado.edu
+ * @file    scheduler.c
+ * @brief   Process the events and handles the LM75 temperature sensor state
+ *          machine.
  *
- * @due         Nov 24, 2022
- * @project     ecen5823-courseproject-server
+ * @author  Amey More, Amey.More@colorado.edu
+ * @date    Nov 24, 2022
  *
- * @institution University of Colorado Boulder (UCB)
- * @course      ECEN 5823-001: IoT Embedded Firmware (Fall 2022)
- * @instructor  David Sluiter
+ * @editor  Nov 28, 2022, Ajay Kandagal, ajka9053@colorado.edu
+ * @change  Added I2C and LETIMER0 events and state machine for handling LM75
+ *          temperature sensor.
  *
- * @editor      Nov 28, 2022, Ajay Kandagal, ajka9053@colorado.edu
- * @change      Added I2C and LETIMER0 events and state machine for handling
- *              LM75 temperature sensor.
+ * @editor  Dec 2, 2022, Ajay Kandagal
+ * @change  Updated temperature state machine to shutdown and wakeup LM75
+ *          sensor. Added logic to handle button events.
  *
  ******************************************************************************/
 #include "em_core.h"
@@ -59,6 +58,10 @@ typedef enum {
 ftm_state_lm75_t g_next_state_lm75 = STATE_LM75_BOOT;
 
 
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when PB0 is pressed.
+ ******************************************************************************/
 void schedulerSetEventPB0Pressed()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -70,6 +73,10 @@ void schedulerSetEventPB0Pressed()
 }
 
 
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when PB1 is pressed.
+ ******************************************************************************/
 void schedulerSetEventPB1Pressed()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -81,6 +88,10 @@ void schedulerSetEventPB1Pressed()
 }
 
 
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when Button 1 is pressed from 1x4 keypad.
+ ******************************************************************************/
 void schedulerSetEventB1Pressed()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -92,6 +103,10 @@ void schedulerSetEventB1Pressed()
 }
 
 
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when Button 2 is pressed from 1x4 keypad.
+ ******************************************************************************/
 void schedulerSetEventB2Pressed()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -103,6 +118,10 @@ void schedulerSetEventB2Pressed()
 }
 
 
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when Button 3 is pressed from 1x4 keypad.
+ ******************************************************************************/
 void schedulerSetEventB3Pressed()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -114,6 +133,10 @@ void schedulerSetEventB3Pressed()
 }
 
 
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when Button 4 is pressed from 1x4 keypad.
+ ******************************************************************************/
 void schedulerSetEventB4Pressed()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -125,7 +148,10 @@ void schedulerSetEventB4Pressed()
 }
 
 
-// This function sets scheduler flag to indicate I2C transfer is complete
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when I2C complete event occurs.
+ ******************************************************************************/
 void schedulerSetI2CEventComplete()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -137,6 +163,10 @@ void schedulerSetI2CEventComplete()
 }
 
 
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when I2C transfer error event occurs.
+ ******************************************************************************/
 void schedulerSetI2CEventFail()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -148,6 +178,10 @@ void schedulerSetI2CEventFail()
 }
 
 
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when LETIMER0 COMP0 event occurs.
+ ******************************************************************************/
 void schedulerSetTimerComp0Event()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -159,6 +193,10 @@ void schedulerSetTimerComp0Event()
 }
 
 
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Generates an BT external signal when LETIMER0 COMP1 event occurs.
+ ******************************************************************************/
 void schedulerSetTimerComp1Event()
 {
   CORE_DECLARE_IRQ_STATE;
@@ -169,6 +207,11 @@ void schedulerSetTimerComp1Event()
   CORE_EXIT_CRITICAL();
 }
 
+
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Handles the button events.
+ ******************************************************************************/
 void handle_button_events(sl_bt_msg_t *evt)
 {
   uint32_t event = evt->data.evt_system_external_signal.extsignals;
@@ -179,12 +222,12 @@ void handle_button_events(sl_bt_msg_t *evt)
   switch (event) {
     case EVT_B1_Pressed:
       LOG_INFO("Pressed B1");
-      toggle_heater();
+      toggle_client_state(CLIENT_TYPE_HEATER);
       break;
 
     case EVT_B2_Pressed:
       LOG_INFO("Pressed B2");
-      toggle_ac();
+      toggle_client_state(CLIENT_TYPE_AC);
       break;
 
     case EVT_B3_Pressed:
@@ -211,12 +254,21 @@ void handle_button_events(sl_bt_msg_t *evt)
   }
 }
 
+
+/******************************************************************************
+ * @brief Handles the temperature state machine fail event.
+ ******************************************************************************/
 void handleI2CFailedEvent()
 {
   g_next_state_lm75 = STATE_LM75_BOOT;
   NVIC_DisableIRQ(I2C0_IRQn);
 }
 
+
+/******************************************************************************
+ * SEE HEADER FILE FOR FULL DETAILS
+ * Handles the state machine of LM75 temperature sensor.
+ ******************************************************************************/
 void temperatureStateMachine(sl_bt_msg_t *evt)
 {
   uint32_t event = evt->data.evt_system_external_signal.extsignals;

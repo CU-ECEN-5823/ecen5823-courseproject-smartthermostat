@@ -1,17 +1,17 @@
 /*******************************************************************************
- * @file        irq.h
- * @brief       Interrupt header file
- * @author      Amey More, Amey.More@colorado.edu
+ * @file    irq.h
+ * @brief   Interrupt Service Routines and Interrupt Enable.
  *
- * @due         Nov 24, 2022
- * @project     ecen5823-courseproject-server
+ * @author  Amey More, Amey.More@colorado.edu
+ * @date    Nov 24, 2022
  *
- * @institution University of Colorado Boulder (UCB)
- * @course      ECEN 5823-001: IoT Embedded Firmware (Fall 2022)
- * @instructor  David Sluiter
+ * @editor  Nov 28, 2022, Ajay Kandagal, ajka9053@colorado.edu
+ * @change  Added IRQ Handlers for LETIMER0 and I2C0
+ *
+ * @editor  Dec 2, 2022, Ajay Kandagal
+ * @change  Added code to handle PB0 and PB1 events.
  *
  ******************************************************************************/
-
 #ifndef IRQ_H
 #define IRQ_H
 

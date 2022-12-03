@@ -1,17 +1,15 @@
 /*******************************************************************************
- * @file        irq.c
- * @brief       Interrupt Service Routines and Interrupt Enable
- * @author      Amey More, Amey.More@colorado.edu
+ * @file    irq.c
+ * @brief   Interrupt Service Routines and Interrupt Enable.
  *
- * @due         Nov 24, 2022
- * @project     ecen5823-courseproject-server
+ * @author  Amey More, Amey.More@colorado.edu
+ * @date    Nov 24, 2022
  *
- * @institution University of Colorado Boulder (UCB)
- * @course      ECEN 5823-001: IoT Embedded Firmware (Fall 2022)
- * @instructor  David Sluiter
+ * @editor  Nov 28, 2022, Ajay Kandagal, ajka9053@colorado.edu
+ * @change  Added IRQ Handlers for LETIMER0 and I2C0
  *
- * @editor      Nov 28, 2022, Ajay Kandagal, ajka9053@colorado.edu
- * @change      Added IRQ Handlers for LETIMER0 and I2C0
+ * @editor  Dec 2, 2022, Ajay Kandagal
+ * @change  Added code to handle PB0 and PB1 events.
  *
  ******************************************************************************/
 #include "em_common.h"
@@ -90,7 +88,9 @@ void I2C0_IRQHandler(void) {
 } // I2C0_IRQHandler()
 
 
-// ISR for Button 0
+/*******************************************************************************
+ * Calls scheduler to set an event when Button 1 or 3 or PB0 is pressed.
+ ******************************************************************************/
 void GPIO_EVEN_IRQHandler()  {
   uint32_t flags = GPIO_IntGetEnabled();
 
@@ -115,7 +115,9 @@ void GPIO_EVEN_IRQHandler()  {
 }   //    GPIO_EVEN_IRQHandler()
 
 
-// ISR for Button 1
+/*******************************************************************************
+ * Calls scheduler to set an event when Button 2 or 4 or PB1 is pressed.
+ ******************************************************************************/
 void GPIO_ODD_IRQHandler()  {
   uint32_t flags = GPIO_IntGetEnabled();
 
