@@ -8,6 +8,6 @@
     <properties key="projectCommon.partId" value="mcu.arm.efr32.bg13.efr32bg13p632f512gm48"/>
     <properties key="projectCommon.toolchainId" value="com.silabs.ss.tool.ide.arm.toolchain.gnu.cdt:10.2.1.20201103"/>
     <properties key="universalConfig.projectTypeIds" value="com.silabs.ss.framework.ide.project.core.cdtMbsProjectType"/>
-    <properties key="projectCommon.importModeId" value="COPY"/>
+    <properties key="projectCommon.importModeId" value="LINK"/>
   </descriptors>
 </model:MDescriptors>

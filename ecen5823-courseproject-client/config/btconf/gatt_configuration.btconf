@@ -48,4 +48,29 @@
       </properties>
     </characteristic>
   </service>
+  
+  <!--AC Service-->
+  <service advertise="true" name="AC Service" requirement="mandatory" sourceId="" type="primary" uuid="968efa4d-ad8c-46db-a46f-3a52a0eef865">
+    <informativeText/>
+    
+    <!--AC Characteristic-->
+    <characteristic const="false" id="ac_state" name="AC Characteristic" sourceId="" uuid="7a6697b8-0408-4a71-b51d-09b23df27897">
+      <informativeText/>
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <indicate authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+      
+      <!--Client Characteristic Configuration-->
+      <descriptor const="false" discoverable="true" id="client_characteristic_configuration_ac" name="Client Characteristic Configuration" sourceId="org.bluetooth.descriptor.gatt.client_characteristic_configuration" uuid="2902">
+        <properties>
+          <read authenticated="false" bonded="false" encrypted="false"/>
+          <write authenticated="false" bonded="false" encrypted="false"/>
+        </properties>
+        <value length="2" type="hex" variable_length="false">00</value>
+        <informativeText>Abstract:  The Client Characteristic Configuration descriptor defines how the characteristic may be configured by a specific client.  Summary:  This descriptor shall be persistent across connections for bonded devices.         The Client Characteristic Configuration descriptor is unique for each client. A client may read and write this descriptor to determine and set the configuration for that client.         Authentication and authorization may be required by the server to write this descriptor.         The default value for the Client Characteristic Configuration descriptor is 0x00. Upon connection of non-binded clients, this descriptor is set to the default value.  </informativeText>
+      </descriptor>
+    </characteristic>
+  </service>
 </gatt>

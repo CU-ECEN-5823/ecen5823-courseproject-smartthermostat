@@ -19,42 +19,26 @@
 #include "sl_bt_api.h"
 
 typedef enum {
-   evtLETIMER0_UF        = 1,
-   evtLETIMER0_COMP1     = 2,
-   evtI2C_Done           = 3,
    evtPB0_Pressed        = 4,
    evtPB1_Pressed        = 5,
 } event_type_t;
 
 typedef enum {
-  IdleState,
-  PowerOn,
-  SiWrite,
-  SiRead,
-  PowerOff
-//  n_states
-} states_t;
-
-typedef enum {
+  Advertising,
   Connected,
-  DiscoverTemperatureServices,
-  DiscoverButtonServices,
-  DiscoverTemperatureCharacteristics,
-  DiscoverButtonCharacteristics,
-  SetTemperatureNotification,
-  SetButtonNotification
-  //  n_states
-} discover_states_t;
-
+  ConfirmBonding,
+  ConfirmPasskey,
+  Bonded,
+  DiscoverServices,
+  DiscoverCharacteristics,
+  SetNotification
+//  n_states
+} connection_states_t;
 
 // Function prototypes
-void schedulerSetEventUF(void);
-void schedulerSetEventCOMP1(void);
-void schedulerSetEventI2CDone(void);
 void schedulerSetEventPB0Pressed(void);
 void schedulerSetEventPB1Pressed(void);
-//uint32_t getNextEvent(void);
-void temperature_state_machine(sl_bt_msg_t *event);
-void discover_state_machine(sl_bt_msg_t *event);
+
+void connection_state_machine(sl_bt_msg_t *event);
 
 #endif  /* SCHEDULER_H */

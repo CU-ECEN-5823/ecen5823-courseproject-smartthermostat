@@ -47,12 +47,12 @@ void handle_bt_boot() {
   sl_bt_system_get_identity_address(&ble_client_data.myAddress, &ble_client_data.myAddress_type);
 
   displayPrintf(DISPLAY_ROW_BTADDR, "%x:%x:%x:%x:%x:%x",ble_client_data.myAddress.addr[0],
-                                                        ble_client_data.myAddress.addr[1],
-                                                        ble_client_data.myAddress.addr[2],
-                                                        ble_client_data.myAddress.addr[3],
-                                                        ble_client_data.myAddress.addr[4],
-                                                        ble_client_data.myAddress.addr[5]
-                );
+                ble_client_data.myAddress.addr[1],
+                ble_client_data.myAddress.addr[2],
+                ble_client_data.myAddress.addr[3],
+                ble_client_data.myAddress.addr[4],
+                ble_client_data.myAddress.addr[5]
+  );
 
   sl_status = sl_bt_advertiser_create_set(&ble_client_data.advertisingHandle);
   if(sl_status != SL_STATUS_OK) {
@@ -64,7 +64,7 @@ void handle_bt_boot() {
                                           ADVERTISING_MAX,
                                           ADVERTISING_DURATION,
                                           ADVERTISING_MAXEVENTS
-                                         );
+  );
   if(sl_status != SL_STATUS_OK) {
       LOG_ERROR("Advertiser Set Timing Error 0x%x",sl_status);
   }
@@ -80,9 +80,9 @@ void handle_bt_boot() {
   }
 
   sl_status = sl_bt_advertiser_start(ble_client_data.advertisingHandle,
-                                       sl_bt_advertiser_general_discoverable,
-                                       sl_bt_advertiser_connectable_scannable
-                                    );
+                                     sl_bt_advertiser_general_discoverable,
+                                     sl_bt_advertiser_connectable_scannable
+  );
   if(sl_status == SL_STATUS_OK) {
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
   }
@@ -102,7 +102,7 @@ void handle_bt_open(sl_bt_msg_t *evt) {
                                                  CONNECTION_TIMEOUT,
                                                  CONNECTION_MIN_CE,
                                                  CONNECTION_MAX_CE
-                                                );
+  );
 
   if(sl_status == SL_STATUS_OK) {
       displayPrintf(DISPLAY_ROW_CONNECTION, "Connected");
@@ -126,13 +126,26 @@ void handle_bt_confirm_paskey(sl_bt_msg_t *evt) {
 }
 
 void handle_bt_external_signals(sl_bt_msg_t *evt) {
+  uint8_t var = 1;
   if((evt->data.evt_system_external_signal.extsignals == evtPB0_Pressed))  {
-    LOG_INFO("Pressed");
-    sl_status = sl_bt_sm_passkey_confirm(ble_client_data.connectionHandle, 1);
-    if(sl_status != SL_STATUS_OK) {
-        LOG_ERROR("SM Passkey Confirm Error 0x%x",sl_status);
-    }
+      LOG_INFO("Pressed");
+      sl_status = sl_bt_sm_passkey_confirm(ble_client_data.connectionHandle, 1);
+      if(sl_status != SL_STATUS_OK) {
+          LOG_ERROR("SM Passkey Confirm Error 0x%x",sl_status);
+      }
   }
+
+  if((evt->data.evt_system_external_signal.extsignals == evtPB1_Pressed))  {
+        LOG_INFO("PB1 Pressed");
+        sl_status = sl_bt_gatt_server_send_indication( ble_client_data.connectionHandle,
+                                                       gattdb_ac_state,
+                                                       1,
+                                                       &var
+                                                     );
+        if (sl_status != SL_STATUS_OK) {
+            LOG_ERROR("Gatt Server Send Indication Error 0x%x",sl_status);
+        }
+    }
 }
 
 void handle_bt_bonded() {
@@ -140,51 +153,101 @@ void handle_bt_bonded() {
   displayPrintf(DISPLAY_ROW_ACTION, " ");
   displayPrintf(DISPLAY_ROW_CONNECTION, "Bonded");
 
+#if (DEVICE_IS_HEATER)
   sl_status = sl_bt_gatt_discover_primary_services_by_uuid(ble_client_data.connectionHandle,
-                                                           sizeof(thermo_service),
-                                                           (const uint8_t*)thermo_service
-                                                          );
+                                                           sizeof(heater_service),
+                                                           (const uint8_t*)heater_service
+  );
   if(sl_status != SL_STATUS_OK) {
-      LOG_ERROR("Primary Services Discovery Error 0x%04x",sl_status);
+      LOG_ERROR("Heater Primary Services Discovery Error 0x%04x",sl_status);
   }
+  else {
+      LOG_INFO("Heater Primary Services Discovery Success");
+  }
+#else
+  sl_status = sl_bt_gatt_discover_primary_services_by_uuid(ble_client_data.connectionHandle,
+                                                           sizeof(ac_service),
+                                                           (const uint8_t*)ac_service
+  );
+  if(sl_status != SL_STATUS_OK) {
+      LOG_ERROR("AC Primary Services Discovery Error 0x%04x",sl_status);
+  }
+  else {
+      LOG_INFO("AC Primary Services Discovery Success");
+  }
+#endif
 }
 
 void handle_bt_gatt_complete()  {
   if(gattCount == 0)  {
+
+#if (DEVICE_IS_HEATER)
       sl_status = sl_bt_gatt_discover_characteristics_by_uuid(ble_client_data.connectionHandle,
-                                                              ble_client_data.HTMServiceHandle,
-                                                              sizeof(thermo_char),
-                                                              (const uint8_t*)thermo_char
-                                                             );
+                                                              ble_client_data.HeaterServiceHandle,
+                                                              sizeof(heater_char),
+                                                              (const uint8_t*)heater_char
+      );
       if(sl_status != SL_STATUS_OK) {
-          LOG_ERROR("Button Discover Characteristics Error 0x%04x",sl_status);
+          LOG_ERROR("Heater Discover Characteristics Error 0x%04x",sl_status);
       }
       else {
+          LOG_INFO("Heater Discover Characteristics Success");
           gattCount = 1;
       }
+#else
+      sl_status = sl_bt_gatt_discover_characteristics_by_uuid(ble_client_data.connectionHandle,
+                                                              ble_client_data.ACServiceHandle,
+                                                              sizeof(ac_char),
+                                                              (const uint8_t*)ac_char
+      );
+      if(sl_status != SL_STATUS_OK) {
+          LOG_ERROR("AC Discover Characteristics Error 0x%04x",sl_status);
+      }
+      else {
+          LOG_INFO("AC Discover Characteristics Success");
+          gattCount = 1;
+      }
+#endif
   }
 
   if(gattCount == 1)  {
+
+#if (DEVICE_IS_HEATER)
       sl_status = sl_bt_gatt_set_characteristic_notification(ble_client_data.connectionHandle,
-                                                             ble_client_data.HTMCharacteristicsHandle,
+                                                             ble_client_data.HeaterCharacteristicsHandle,
                                                              sl_bt_gatt_indication
-                                                            );
+      );
       if(sl_status == SL_STATUS_OK) {
+          LOG_INFO("Heater Set Notification Success");
           displayPrintf(DISPLAY_ROW_CONNECTION, "Handling Indications");
+          gattCount = 2;
       }
       else  {
-          LOG_ERROR("Temperature Characteristics Notification Error 0x%04x",sl_status);
+          LOG_ERROR("Heater Set Notification Error 0x%04x",sl_status);
       }
-      gattCount = 2;
+#else
+      sl_status = sl_bt_gatt_set_characteristic_notification(ble_client_data.connectionHandle,
+                                                             ble_client_data.ACCharacteristicsHandle,
+                                                             sl_bt_gatt_indication
+      );
+      if(sl_status == SL_STATUS_OK) {
+          LOG_INFO("AC Set Notification Success");
+          displayPrintf(DISPLAY_ROW_CONNECTION, "Handling Indications");
+          gattCount = 2;
+      }
+      else  {
+          LOG_ERROR("AC Set Notification Error 0x%04x",sl_status);
+      }
+#endif
   }
 }
 
 void handle_bt_close()  {
   gattCount = 0;
   sl_status = sl_bt_advertiser_start(ble_client_data.advertisingHandle,
-                                           sl_bt_advertiser_general_discoverable,
-                                           sl_bt_advertiser_connectable_scannable
-                                          );
+                                     sl_bt_advertiser_general_discoverable,
+                                     sl_bt_advertiser_connectable_scannable
+  );
 
   if(sl_status == SL_STATUS_OK) {
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
@@ -207,21 +270,25 @@ void handle_ble_event(sl_bt_msg_t *evt) {
     case sl_bt_evt_system_boot_id:
       LOG_INFO("Boot");
       handle_bt_boot();
+      ble_client_data.stateTransition = Advertising;
       break;
 
     case sl_bt_evt_connection_opened_id:
       LOG_INFO("Connected");
-      handle_bt_open(evt);
+      //handle_bt_open(evt);
+      ble_client_data.stateTransition = Connected;
       break;
 
     case sl_bt_evt_sm_confirm_bonding_id:
       LOG_INFO("Confirm Bonding");
-      handle_bt_confirm_bonding();
+      //handle_bt_confirm_bonding();
+      ble_client_data.stateTransition = ConfirmBonding;
       break;
 
     case sl_bt_evt_sm_confirm_passkey_id:
       LOG_INFO("Confirm Passkey");
-      handle_bt_confirm_paskey(evt);
+      //handle_bt_confirm_paskey(evt);
+      ble_client_data.stateTransition = ConfirmPasskey;
       break;
 
     case sl_bt_evt_system_external_signal_id:
@@ -230,7 +297,8 @@ void handle_ble_event(sl_bt_msg_t *evt) {
 
     case sl_bt_evt_sm_bonded_id:
       LOG_INFO("Bonded");
-      handle_bt_bonded();
+      //handle_bt_bonded();
+      ble_client_data.stateTransition = Bonded;
       break;
 
     case sl_bt_evt_sm_bonding_failed_id:
@@ -239,12 +307,27 @@ void handle_ble_event(sl_bt_msg_t *evt) {
 
     case sl_bt_evt_gatt_procedure_completed_id:
       LOG_INFO("Gatt Complete");
-      handle_bt_gatt_complete();
+      //      handle_bt_gatt_complete();
+      if(gattCount == 0)  {
+          ble_client_data.stateTransition = DiscoverServices;
+      }
+      if(gattCount == 1)  {
+          ble_client_data.stateTransition = DiscoverCharacteristics;
+      }
+      if(gattCount == 2)  {
+          ble_client_data.stateTransition = SetNotification;
+      }
       break;
 
     case sl_bt_evt_connection_closed_id:
       LOG_INFO("Closed");
-      handle_bt_close();
+      //      handle_bt_close();
+      ble_client_data.stateTransition = Advertising;
+      break;
+
+    case sl_bt_evt_gatt_characteristic_value_id:
+      LOG_INFO("Send Confirmation");
+      sl_bt_gatt_send_characteristic_confirmation(ble_client_data.connectionHandle);
       break;
   }
 }   //    handle_ble_event

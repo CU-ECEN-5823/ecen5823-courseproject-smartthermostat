@@ -248,5 +248,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
 
   handle_ble_event(evt);
 
+  connection_state_machine(evt);
+
 } // sl_bt_on_event()
 

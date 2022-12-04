@@ -29,4 +29,31 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>readme_img0.png</name>
+			<type>1</type>
+			<locationURI>PROJECT_LOC/readme_img0.png</locationURI>
+		</link>
+		<link>
+			<name>readme_img1.png</name>
+			<type>1</type>
+			<locationURI>PROJECT_LOC/readme_img1.png</locationURI>
+		</link>
+		<link>
+			<name>readme_img2.png</name>
+			<type>1</type>
+			<locationURI>PROJECT_LOC/readme_img2.png</locationURI>
+		</link>
+		<link>
+			<name>readme_img3.png</name>
+			<type>1</type>
+			<locationURI>PROJECT_LOC/readme_img3.png</locationURI>
+		</link>
+		<link>
+			<name>readme_img4.png</name>
+			<type>1</type>
+			<locationURI>PROJECT_LOC/readme_img4.png</locationURI>
+		</link>
+	</linkedResources>
 </projectDescription>
