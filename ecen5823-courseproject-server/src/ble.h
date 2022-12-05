@@ -56,11 +56,13 @@ typedef struct {
   client_conn_state_t conn_state;
   client_state_t onoff_state;
   uint8_t gatt_ack_pending;
+  uint8_t indications_enabled;
 }client_data_t;
 
 typedef struct {
   bd_addr addr;
   uint8_t addr_type;
+  uint8_t adv_handle;
   int16_t current_temp;
   int16_t target_temp;
   uint8_t offset_temp;

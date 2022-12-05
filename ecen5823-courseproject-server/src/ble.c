@@ -16,6 +16,7 @@
 #include "ble.h"
 #include "lcd.h"
 #include "scheduler.h"
+#include "../autogen/gatt_db.h"
 
 #define INCLUDE_LOG_DEBUG 1
 #include "src/log.h"
@@ -39,6 +40,7 @@ client_data_t g_client_data[] = {
         .onoff_state = CLIENT_STATE_OFF,
         .conn_handle = 0,
         .bond_handle = 0,
+        .indications_enabled = 0,
         .gatt_ack_pending = 0
     },
     {
@@ -48,6 +50,7 @@ client_data_t g_client_data[] = {
         .onoff_state = CLIENT_STATE_OFF,
         .conn_handle = 0,
         .bond_handle = 0,
+        .indications_enabled = 0,
         .gatt_ack_pending = 0
     }
 };
@@ -258,6 +261,18 @@ void set_client_state(client_type_t client_type, client_state_t onoff_state)
       LOG_INFO("TURNED ON/OFF THE CLIENT\n");
       client->onoff_state = onoff_state;
       // send indication
+      sl_status_t status = sl_bt_gatt_server_send_indication(
+          client->conn_handle,
+          gattdb_ac_state,
+          1,
+          &client->onoff_state
+      );
+
+      if (status != SL_STATUS_OK)
+        LOG_ERROR("Failed to send indication %u\n", status);
+      else
+        LOG_INFO("Successfully sent indication\n");
+
       update_lcd();
   }
 }
@@ -474,14 +489,6 @@ void handle_bt_boot(void)
   if (status != SL_STATUS_OK)
     LOG_ERROR("Failed to get the BT address");
 
-  status = sl_bt_scanner_set_mode(sl_bt_gap_1m_phy, PASSIVE_SCANNING);
-  if (status != SL_STATUS_OK)
-    LOG_ERROR("Failed to set scanner mode");
-
-  status = sl_bt_scanner_set_timing(sl_bt_gap_1m_phy, SCAN_INTERVAL, SCAN_WINDOW);
-  if (status != SL_STATUS_OK)
-    LOG_ERROR("Failed to set scanner timing");
-
   status = sl_bt_connection_set_default_parameters(CONNECTION_INTERVAL, \
                                                    CONNECTION_INTERVAL, \
                                                    CONNECTION_LATENCY, \
@@ -509,6 +516,19 @@ void handle_bt_boot(void)
   for (int i = 0; i < g_server_data.clients_count; i++)
     g_server_data.clients_data[i].conn_state = CONN_STATE_SCANNING;
 
+  //  status = sl_bt_advertiser_create_set(&g_server_data.adv_handle);
+  //  status = sl_bt_advertiser_set_timing(g_server_data.adv_handle, 400, 400, 0, 0);
+  //  status = sl_bt_advertiser_start(g_server_data.adv_handle,
+  //                                  sl_bt_advertiser_general_discoverable,
+  //                                  sl_bt_advertiser_connectable_scannable);
+
+  status = sl_bt_scanner_set_mode(sl_bt_gap_1m_phy, PASSIVE_SCANNING);
+  if (status != SL_STATUS_OK)
+    LOG_ERROR("Failed to set scanner mode");
+
+  status = sl_bt_scanner_set_timing(sl_bt_gap_1m_phy, SCAN_INTERVAL, SCAN_WINDOW);
+  if (status != SL_STATUS_OK)
+    LOG_ERROR("Failed to set scanner timing");
   start_bt_scan();
 
   update_lcd();
@@ -524,16 +544,15 @@ void handle_bt_boot(void)
  ******************************************************************************/
 void handle_bt_scanned(sl_bt_msg_t *evt)
 {
-  sl_status_t status;
+  sl_status_t scan_status;
 
-  status = sl_bt_scanner_stop();
-
-  if (status != SL_STATUS_OK)
-    LOG_ERROR("Failed to stop scanning :: %u\n", status);
+  scan_status = sl_bt_scanner_stop();
 
   client_data_t *client = get_client_by_addr(evt->data.evt_scanner_scan_report.address);
 
   if (client != NULL && client->conn_state != CONN_STATE_DISCONNECTED) {
+      sl_status_t status;
+
       client->conn_state = CONN_STATE_CONNECTING;
 
       status = sl_bt_connection_open(client->addr, \
@@ -547,7 +566,13 @@ void handle_bt_scanned(sl_bt_msg_t *evt)
         LOG_INFO("Succeeded to start connection\n");
   }
   else {
-      start_bt_scan();
+      if (scan_status != SL_STATUS_OK) {
+          LOG_ERROR("Failed to stop scanning :: %u\n", scan_status);
+          return;
+      }
+      else {
+          start_bt_scan();
+      }
   }
 
   update_lcd();
@@ -568,6 +593,8 @@ void handle_bt_opened(sl_bt_msg_t *evt)
   LOG_INFO("handle_bt_opened\n");
 
   client_data_t *client = get_client_by_addr(evt->data.evt_connection_opened.address);
+
+  //  client_data_t *client = get_client_by_type(CLIENT_TYPE_AC);
 
   if (client != NULL) {
       LOG_INFO("Connected\n");
@@ -657,7 +684,7 @@ void handle_bt_bonded(sl_bt_msg_t *evt)
       client->bond_handle = evt->data.evt_sm_confirm_bonding.bonding_handle;
   }
 
-  start_bt_scan();
+  //  start_bt_scan();
   update_lcd();
 }
 
@@ -680,6 +707,41 @@ void handle_bt_bonding_failed(sl_bt_msg_t *evt)
 
   start_bt_scan();
   update_lcd();
+}
+
+/******************************************************************************
+ * @brief Handles GATT characteristic status event
+ *
+ * @param *evt BT on event evt value
+ ******************************************************************************/
+void handle_gatt_server_characteristic_status(sl_bt_msg_t *evt)
+{
+  LOG_INFO("handle_gatt_server_characteristic_status\n");
+  client_data_t *client = get_client_by_conn_handle(evt->data.evt_gatt_server_characteristic_status.connection);
+
+  if (client == NULL)
+    return;
+
+  client = get_client_by_type(CLIENT_TYPE_HEATER);
+
+  LOG_INFO("handle_gatt_server_characteristic_status\n");
+
+  if (evt->data.evt_gatt_server_characteristic_status.client_config_flags == 0x02) {
+      if (client->client_type == CLIENT_TYPE_AC)
+        LOG_INFO("AC State Indications Enabled\n");
+      else if (client->client_type == CLIENT_TYPE_AC)
+        LOG_INFO("AC State Indications Enabled\n");
+
+      client->indications_enabled = 1;
+  }
+  else if (evt->data.evt_gatt_server_characteristic_status.client_config_flags == 0x00) {
+      if (client->client_type == CLIENT_TYPE_AC)
+        LOG_INFO("AC State Indications Disabled\n");
+      else if (client->client_type == CLIENT_TYPE_AC)
+        LOG_INFO("AC State Indications Disabled\n");
+
+      client->indications_enabled = 0;
+  }
 }
 
 
@@ -752,6 +814,12 @@ void handle_ble_event(sl_bt_msg_t *evt)
       break;
     case sl_bt_evt_sm_confirm_passkey_id:
       handle_bt_confirm_passkey(evt);
+      break;
+    case sl_bt_evt_gatt_server_characteristic_status_id:
+      handle_gatt_server_characteristic_status(evt);
+      break;
+    case sl_bt_evt_gatt_server_indication_timeout_id:
+      // handle when gatt indication received ack by gatt pending flag
       break;
     case sl_bt_evt_system_soft_timer_id:
       displayUpdate(evt);
