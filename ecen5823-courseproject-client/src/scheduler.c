@@ -67,6 +67,12 @@ void connection_state_machine(sl_bt_msg_t *event) {
           nextState = ConfirmBonding;
       }
 
+      if(bleDataPtr->stateTransition == Bonded) {
+          LOG_INFO("connected->bonded");
+          handle_bt_bonded();
+          nextState = Bonded;
+      }
+
       if(bleDataPtr->stateTransition == Advertising)  {
           handle_bt_close();
           nextState = Advertising;

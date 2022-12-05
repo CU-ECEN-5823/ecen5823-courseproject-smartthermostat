@@ -42,6 +42,8 @@ void handle_bt_boot() {
   displayInit();
   displayPrintf(DISPLAY_ROW_NAME, "%s",(DEVICE_IS_HEATER ? "HEATER" : "AC"));
   displayPrintf(DISPLAY_ROW_ASSIGNMENT, "Course Project");
+  displayPrintf(DISPLAY_ROW_8, "%s State",(DEVICE_IS_HEATER ? "HEATER" : "AC"));
+  displayPrintf(DISPLAY_ROW_9, "OFF");
 
   // Extract unique ID from BT Address.
   sl_bt_system_get_identity_address(&ble_client_data.myAddress, &ble_client_data.myAddress_type);
@@ -219,7 +221,6 @@ void handle_bt_gatt_complete()  {
       );
       if(sl_status == SL_STATUS_OK) {
           LOG_INFO("Heater Set Notification Success");
-          displayPrintf(DISPLAY_ROW_CONNECTION, "Handling Indications");
           gattCount = 2;
       }
       else  {
@@ -232,7 +233,6 @@ void handle_bt_gatt_complete()  {
       );
       if(sl_status == SL_STATUS_OK) {
           LOG_INFO("AC Set Notification Success");
-          displayPrintf(DISPLAY_ROW_CONNECTION, "Handling Indications");
           gattCount = 2;
       }
       else  {
@@ -244,6 +244,8 @@ void handle_bt_gatt_complete()  {
 
 void handle_bt_close()  {
   gattCount = 0;
+  gpioLed0SetOff();
+  gpioLed1SetOff();
   sl_status = sl_bt_advertiser_start(ble_client_data.advertisingHandle,
                                      sl_bt_advertiser_general_discoverable,
                                      sl_bt_advertiser_connectable_scannable
@@ -251,15 +253,17 @@ void handle_bt_close()  {
 
   if(sl_status == SL_STATUS_OK) {
       displayPrintf(DISPLAY_ROW_CONNECTION, "Advertising");
+      displayPrintf(DISPLAY_ROW_PASSKEY, " ");
+      displayPrintf(DISPLAY_ROW_ACTION, " ");
   }
   else {
       LOG_ERROR("Advertiser Start Error 0x%x",sl_status);
   }
 
-  sl_status = sl_bt_sm_delete_bondings();
-  if(sl_status != SL_STATUS_OK) {
-      LOG_ERROR("Delete Bondings Error 0x%x",sl_status);
-  }
+//  sl_status = sl_bt_sm_delete_bondings();
+//  if(sl_status != SL_STATUS_OK) {
+//      LOG_ERROR("Delete Bondings Error 0x%x",sl_status);
+//  }
 }
 
 // To handle ble events
@@ -297,12 +301,16 @@ void handle_ble_event(sl_bt_msg_t *evt) {
 
     case sl_bt_evt_sm_bonded_id:
       LOG_INFO("Bonded");
+      gpioLed0SetOn();
       //handle_bt_bonded();
       ble_client_data.stateTransition = Bonded;
       break;
 
     case sl_bt_evt_sm_bonding_failed_id:
       LOG_ERROR("Bonding Failed");
+      displayPrintf(DISPLAY_ROW_PASSKEY, " ");
+      displayPrintf(DISPLAY_ROW_ACTION, " ");
+      gpioLed0SetOff();
       break;
 
     case sl_bt_evt_gatt_procedure_completed_id:
@@ -328,6 +336,67 @@ void handle_ble_event(sl_bt_msg_t *evt) {
     case sl_bt_evt_gatt_characteristic_value_id:
       LOG_INFO("Send Confirmation");
       sl_bt_gatt_send_characteristic_confirmation(ble_client_data.connectionHandle);
+      if(evt->data.evt_gatt_characteristic_value.characteristic == ble_client_data.HeaterCharacteristicsHandle)  {
+          if(evt->data.evt_gatt_characteristic_value.value.data[0] == 0x01) {
+              displayPrintf(DISPLAY_ROW_9, "ON");
+              gpioLed1SetOn();
+              gpioRelayOn();
+          }
+          if(evt->data.evt_gatt_characteristic_value.value.data[0] == 0x00) {
+              displayPrintf(DISPLAY_ROW_9, "OFF");
+              gpioLed1SetOff();
+              gpioRelayOff();
+          }
+      }
+      if(evt->data.evt_gatt_characteristic_value.characteristic == ble_client_data.ACCharacteristicsHandle)  {
+          if(evt->data.evt_gatt_characteristic_value.value.data[0] == 0x01) {
+              displayPrintf(DISPLAY_ROW_9, "ON");
+              gpioLed1SetOn();
+              gpioRelayOn();
+          }
+          if(evt->data.evt_gatt_characteristic_value.value.data[0] == 0x00) {
+              displayPrintf(DISPLAY_ROW_9, "OFF");
+              gpioLed1SetOff();
+              gpioRelayOff();
+          }
+      }
+      break;
+
+    case sl_bt_evt_gatt_service_id:
+      if (evt->data.evt_gatt_service.uuid.len == 16)  {
+
+          if (!memcmp(evt->data.evt_gatt_service.uuid.data, heater_service, 16))  {
+              LOG_INFO("Heater Service Id");
+              ble_client_data.HeaterServiceHandle = evt->data.evt_gatt_service.service;
+          }
+
+
+          if (!memcmp(evt->data.evt_gatt_service.uuid.data, ac_service, 16))  {
+              LOG_INFO("AC Service ID");
+              ble_client_data.ACServiceHandle = evt->data.evt_gatt_service.service;
+          }
+
+
+      }
+
+      break;
+
+    case sl_bt_evt_gatt_characteristic_id:
+      if (evt->data.evt_gatt_characteristic.uuid.len == 16) {
+
+          if (!memcmp(evt->data.evt_gatt_characteristic.uuid.data, heater_char, 16)) {
+              LOG_INFO("Heater Char ID");
+              ble_client_data.HeaterCharacteristicsHandle = evt->data.evt_gatt_characteristic.characteristic;
+              displayPrintf(DISPLAY_ROW_CONNECTION, "Handling Indications");
+          }
+
+          if (!memcmp(evt->data.evt_gatt_characteristic.uuid.data, ac_char, 16)) {
+              LOG_INFO("AC Char ID");
+              ble_client_data.ACCharacteristicsHandle = evt->data.evt_gatt_characteristic.characteristic;
+              displayPrintf(DISPLAY_ROW_CONNECTION, "Handling Indications");
+          }
+
+      }
       break;
   }
 }   //    handle_ble_event
