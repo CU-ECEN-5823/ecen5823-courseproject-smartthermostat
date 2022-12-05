@@ -73,7 +73,6 @@ server_data_t g_server_data = {
  ******************************************************************************/
 void ble_init()
 {
-  g_server_data.lcd_on = 1;
   displayInit();
 }
 
@@ -241,24 +240,6 @@ void update_lcd(void)
   }
 }
 
-uint8_t lcd_on_status()
-{
-  return g_server_data.lcd_on;
-}
-
-void set_lcd_on()
-{
-  g_server_data.lcd_on = 1;
-  displayInit();
-  update_lcd();
-}
-
-void set_lcd_off()
-{
-  g_server_data.lcd_on = 0;
-  gpioSensorEnSetOff();
-}
-
 
 /******************************************************************************
  * @brief   Turns On/Off a client of type AC/Heater, sends respective
@@ -278,20 +259,38 @@ void set_client_state(client_type_t client_type, client_state_t onoff_state)
     return;
 
   if (client->conn_state == CONN_STATE_BONDED && client->onoff_state != onoff_state) {
-      LOG_INFO("TURNED ON/OFF THE CLIENT\n");
       client->onoff_state = onoff_state;
       // send indication
-      sl_status_t status = sl_bt_gatt_server_send_indication(
-          client->conn_handle,
-          gattdb_ac_state,
-          1,
-          &client->onoff_state
-      );
+      sl_status_t status;
 
-      if (status != SL_STATUS_OK)
-        LOG_ERROR("Failed to send indication %u\n", status);
-      else
-        LOG_INFO("Successfully sent indication\n");
+      if (client->client_type == CLIENT_TYPE_AC && client->indications_enabled) {
+          LOG_INFO("TURNED ON/OFF THE AC\n");
+          status = sl_bt_gatt_server_send_indication(
+              client->conn_handle,
+              gattdb_ac_state,
+              1,
+              &client->onoff_state
+          );
+
+          if (status != SL_STATUS_OK)
+            LOG_ERROR("Failed to send indication %u\n", status);
+          else
+            LOG_INFO("Successfully sent indication\n");
+      }
+      else if (client->client_type == CLIENT_TYPE_HEATER && client->indications_enabled) {
+          LOG_INFO("TURNED ON/OFF THE Heater\n");
+          status = sl_bt_gatt_server_send_indication(
+              client->conn_handle,
+              gattdb_heater_state,
+              1,
+              &client->onoff_state
+          );
+
+          if (status != SL_STATUS_OK)
+            LOG_ERROR("Failed to send indication %u\n", status);
+          else
+            LOG_INFO("Successfully sent indication\n");
+      }
 
       update_lcd();
   }
@@ -843,17 +842,7 @@ void handle_ble_event(sl_bt_msg_t *evt)
       // handle when gatt indication received ack by gatt pending flag
       break;
     case sl_bt_evt_system_soft_timer_id:
-
-      if (lcd_on_status()) {
-          g_server_data.lcd_on_timeout++;
-          displayUpdate(evt);
-      }
-
-      if (g_server_data.lcd_on_timeout >= LCD_TIMEOUT_PERIOD) {
-          set_lcd_off();
-          g_server_data.lcd_on_timeout = 0;
-      }
-
+      displayUpdate(evt);
       break;
   } // end - switch
 } // handle_ble_event()

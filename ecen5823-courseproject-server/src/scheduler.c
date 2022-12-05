@@ -221,11 +221,6 @@ void handle_button_events(sl_bt_msg_t *evt)
       EVT_PB0_Pressed | EVT_PB1_Pressed)))
     return;
 
-  if (!lcd_on_status()) {
-      set_lcd_on();
-      return;
-  }
-
   switch (event) {
     case EVT_B1_Pressed:
       LOG_INFO("Pressed B1");
@@ -282,7 +277,7 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
   if (event == 0)
     return;
 
-  if (!((event & EVT_TIMER_COMP0_UF) || (event & EVT_I2C_TR_FAIL) || (event & EVT_I2C_TR_SUCCESS)))
+  if (!(event & (EVT_TIMER_COMP0_UF | EVT_I2C_TR_FAIL | EVT_I2C_TR_SUCCESS)))
     return;
 
   static uint8_t i2c_data[2];
@@ -290,7 +285,6 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
   switch(g_next_state_lm75)
   {
     case STATE_LM75_BOOT:
-      LOG_INFO("STATE_LM75_BOOT\n");
       if (event & EVT_TIMER_COMP0_UF) {
           g_next_state_lm75 = STATE_LM75_WAKEUP;
           sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
@@ -305,7 +299,6 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
       break;
 
     case STATE_LM75_WAKEUP:
-      LOG_INFO("STATE_LM75_WAKEUP\n");
       if ((event & EVT_I2C_TR_FAIL) || (event & EVT_TIMER_COMP0_UF)) {
           handleI2CFailedEvent();
       }
@@ -316,7 +309,6 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
       break;
 
     case STATE_LM75_READ_TEMP:
-      LOG_INFO("STATE_LM75_READ_TEMP\n");
       NVIC_DisableIRQ(I2C0_IRQn);
       if ((event & EVT_I2C_TR_FAIL) || (event & EVT_TIMER_COMP0_UF)) {
           handleI2CFailedEvent();
@@ -337,7 +329,6 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
       break;
 
     case STATE_LM75_SHUTDOWN:
-      LOG_INFO("STATE_LM75_SHUTDOWN\n");
       if ((event & EVT_I2C_TR_FAIL) || (event & EVT_TIMER_COMP0_UF)) {
           handleI2CFailedEvent();
       }

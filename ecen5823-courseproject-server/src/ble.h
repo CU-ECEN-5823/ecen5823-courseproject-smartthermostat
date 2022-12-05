@@ -151,9 +151,5 @@ void pb0_event_handle(void);
  ******************************************************************************/
 void handle_ble_event(sl_bt_msg_t *evt);
 
-uint8_t lcd_on_status();
-void set_lcd_off();
-void set_lcd_on();
-
 
 #endif /* SRC_BLE_H_ */

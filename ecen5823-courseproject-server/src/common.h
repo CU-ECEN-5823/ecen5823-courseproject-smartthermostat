@@ -9,7 +9,7 @@
 #define SRC_COMMON_H_
 
 // Include logging specifically for this .c file
-#define INCLUDE_LOG_DEBUG 0
+#define INCLUDE_LOG_DEBUG 1
 #include "log.h"
 
 #endif /* SRC_COMMON_H_ */
