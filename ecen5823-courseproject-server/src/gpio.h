@@ -50,6 +50,7 @@ void gpioLed0SetOff();
 void gpioLed1SetOn();
 void gpioLed1SetOff();
 void gpioSensorEnSetOn();
+void gpioSensorEnSetOff();
 void gpioSetDisplayExtcomin(bool extcomin_state);
 
 

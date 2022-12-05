@@ -43,9 +43,15 @@
 
 #ifndef APP_H
 #define APP_H
-#define LOWEST_ENERGY_MODE 2
+
+#define EM0 0
+#define EM1 1
+#define EM2 2
+#define EM3 3
+#define LOWEST_ENERGY_MODE EM2
+
 //#define LETIMER_ON_TIME_MS 80
-#define LETIMER_PERIOD_MS 3000
+#define LETIMER_PERIOD_MS 5000
 
 /**************************************************************************//**
  * Application Init.

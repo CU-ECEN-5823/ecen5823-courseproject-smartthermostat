@@ -16,10 +16,9 @@
 #include "ble.h"
 #include "lcd.h"
 #include "scheduler.h"
+#include "common.h"
+#include "gpio.h"
 #include "../autogen/gatt_db.h"
-
-#define INCLUDE_LOG_DEBUG 1
-#include "src/log.h"
 
 
 #define PASSIVE_SCANNING 0
@@ -62,7 +61,9 @@ server_data_t g_server_data = {
     .session_scans_count = 0,
     .automatic_temp_control = 1,
     .clients_data = g_client_data,
-    .clients_count = sizeof(g_client_data) / sizeof(client_data_t)
+    .clients_count = sizeof(g_client_data) / sizeof(client_data_t),
+    .lcd_on = 0,
+    .lcd_on_timeout = 0
 };
 
 
@@ -72,6 +73,7 @@ server_data_t g_server_data = {
  ******************************************************************************/
 void ble_init()
 {
+  g_server_data.lcd_on = 1;
   displayInit();
 }
 
@@ -237,6 +239,24 @@ void update_lcd(void)
       displayPrintf(DISPLAY_ROW_11, "Auto Off");
       displayPrintf(DISPLAY_ROW_9, "");
   }
+}
+
+uint8_t lcd_on_status()
+{
+  return g_server_data.lcd_on;
+}
+
+void set_lcd_on()
+{
+  g_server_data.lcd_on = 1;
+  displayInit();
+  update_lcd();
+}
+
+void set_lcd_off()
+{
+  g_server_data.lcd_on = 0;
+  gpioSensorEnSetOff();
 }
 
 
@@ -595,6 +615,7 @@ void handle_bt_opened(sl_bt_msg_t *evt)
   client_data_t *client = get_client_by_addr(evt->data.evt_connection_opened.address);
 
   //  client_data_t *client = get_client_by_type(CLIENT_TYPE_AC);
+  //  sl_bt_advertiser_stop(g_server_data.adv_handle);
 
   if (client != NULL) {
       LOG_INFO("Connected\n");
@@ -684,7 +705,7 @@ void handle_bt_bonded(sl_bt_msg_t *evt)
       client->bond_handle = evt->data.evt_sm_confirm_bonding.bonding_handle;
   }
 
-  //  start_bt_scan();
+  start_bt_scan();
   update_lcd();
 }
 
@@ -822,7 +843,17 @@ void handle_ble_event(sl_bt_msg_t *evt)
       // handle when gatt indication received ack by gatt pending flag
       break;
     case sl_bt_evt_system_soft_timer_id:
-      displayUpdate(evt);
+
+      if (lcd_on_status()) {
+          g_server_data.lcd_on_timeout++;
+          displayUpdate(evt);
+      }
+
+      if (g_server_data.lcd_on_timeout >= LCD_TIMEOUT_PERIOD) {
+          set_lcd_off();
+          g_server_data.lcd_on_timeout = 0;
+      }
+
       break;
   } // end - switch
 } // handle_ble_event()

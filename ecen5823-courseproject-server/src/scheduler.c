@@ -21,9 +21,7 @@
 #include "scheduler.h"
 #include "ble.h"
 #include "i2c.h"
-
-#define INCLUDE_LOG_DEBUG (0)
-#include "log.h"
+#include "common.h"
 
 typedef enum {
   EVT_PB0_Pressed = 1,
@@ -219,6 +217,15 @@ void handle_button_events(sl_bt_msg_t *evt)
   if (event == 0)
     return;
 
+  if (!(event & (EVT_B1_Pressed | EVT_B2_Pressed | EVT_B3_Pressed | EVT_B4_Pressed |
+      EVT_PB0_Pressed | EVT_PB1_Pressed)))
+    return;
+
+  if (!lcd_on_status()) {
+      set_lcd_on();
+      return;
+  }
+
   switch (event) {
     case EVT_B1_Pressed:
       LOG_INFO("Pressed B1");
@@ -249,8 +256,6 @@ void handle_button_events(sl_bt_msg_t *evt)
       LOG_INFO("Pressed PB1");
       toggle_auto_feature();
       break;
-    default:
-      break;
   }
 }
 
@@ -261,6 +266,7 @@ void handle_button_events(sl_bt_msg_t *evt)
 void handleI2CFailedEvent()
 {
   g_next_state_lm75 = STATE_LM75_BOOT;
+  sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
   NVIC_DisableIRQ(I2C0_IRQn);
 }
 

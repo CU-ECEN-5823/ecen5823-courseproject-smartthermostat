@@ -21,7 +21,8 @@
 #include "sl_bluetooth.h"
 
 
-#define MAX_SESSION_SCANS 50
+#define MAX_SESSION_SCANS 20
+#define LCD_TIMEOUT_PERIOD 10
 
 
 typedef enum {
@@ -70,6 +71,8 @@ typedef struct {
   uint8_t automatic_temp_control;
   client_data_t *clients_data;
   uint8_t clients_count;
+  uint8_t lcd_on;
+  uint8_t lcd_on_timeout;
 }server_data_t;
 
 
@@ -147,6 +150,10 @@ void pb0_event_handle(void);
  *
  ******************************************************************************/
 void handle_ble_event(sl_bt_msg_t *evt);
+
+uint8_t lcd_on_status();
+void set_lcd_off();
+void set_lcd_on();
 
 
 #endif /* SRC_BLE_H_ */

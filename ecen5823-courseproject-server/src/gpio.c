@@ -18,9 +18,9 @@
 // *****************************************************************************
 
 #include <stdbool.h>
-#include "em_gpio.h"
 #include <string.h>
 
+#include "em_gpio.h"
 #include "gpio.h"
 
 
@@ -98,6 +98,12 @@ void gpioLed1SetOff()
 void gpioSensorEnSetOn()
 {
   GPIO_PinOutSet(LCD_EN_PORT,LCD_EN_PIN);
+}
+
+
+void gpioSensorEnSetOff()
+{
+  GPIO_PinOutClear(LCD_EN_PORT,LCD_EN_PIN);
 }
 
 

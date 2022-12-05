@@ -52,10 +52,7 @@
 #include "src/oscillators.h"
 #include "src/timers.h"
 #include "src/scheduler.h"
-
-// Include logging specifically for this .c file
-#define INCLUDE_LOG_DEBUG 1
-#include "src/log.h"
+#include "src/common.h"
 
 
 // *************************************************
@@ -75,13 +72,15 @@
 // Students: We'll need to modify this for A2 onward so that compile time we
 //           control what the lowest EM (energy mode) the MCU sleeps to. So
 //           think "#if (expression)".
-#if (LOWEST_ENERGY_MODE==0)
+#if LOWEST_ENERGY_MODE
+#define APP_IS_OK_TO_SLEEP      (true)
+#else
 #define APP_IS_OK_TO_SLEEP      (false)
 #endif
 
-#if (LOWEST_ENERGY_MODE>0 && LOWEST_ENERGY_MODE<4)
-#define APP_IS_OK_TO_SLEEP      (true)
-#endif
+//#if (LOWEST_ENERGY_MODE>0 && LOWEST_ENERGY_MODE<4)
+//#define APP_IS_OK_TO_SLEEP      (true)
+//#endif
 
 
 // Return values for app_sleep_on_isr_exit():
@@ -101,9 +100,9 @@
 //       running continuously, flooding the VCOM port with printf text with LETIMER0 IRQs
 //       disabled somehow, LED0 is not flashing.
 
-#define APP_SLEEP_ON_ISR_EXIT   (SL_POWER_MANAGER_IGNORE)
+//#define APP_SLEEP_ON_ISR_EXIT   (SL_POWER_MANAGER_IGNORE)
 //#define APP_SLEEP_ON_ISR_EXIT   (SL_POWER_MANAGER_SLEEP)
-//#define APP_SLEEP_ON_ISR_EXIT   (SL_POWER_MANAGER_WAKEUP)
+#define APP_SLEEP_ON_ISR_EXIT   (SL_POWER_MANAGER_WAKEUP)
 
 #endif // defined(SL_CATALOG_POWER_MANAGER_PRESENT)
 
@@ -123,20 +122,22 @@ sl_power_manager_on_isr_exit_t app_sleep_on_isr_exit(void)
 #endif // defined(SL_CATALOG_POWER_MANAGER_PRESENT)
 
 
-#define LM75A_DEV_ADDR 0x90
-#define LM75A_REG_TEMP 0x00
-#define LM75A_REG_CONG 0x01
-#define LM75A_REG_PROD_ID 0x07
-#define LM75A_PROD_ID 0xA1
-#define LM75A_SHUTDOWN_MASK 0x01
-#define LM75A_INTERRUPT_MASK 0x02
-
-
 /**************************************************************************//**
  * Application Init.
  *****************************************************************************/
 SL_WEAK void app_init(void)
 {
+#if LOWEST_ENERGY_MODE == EM0
+  init_LFXO();
+#elif LOWEST_ENERGY_MODE == EM1
+  init_LFXO();
+  sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
+#elif LOWEST_ENERGY_MODE == EM2
+  init_LFXO();
+  sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM2);
+#elif LOWEST_ENERGY_MODE == EM3
+  init_ULFRCO();
+#endif
   gpioInit();
   ble_init();
   IRQ_Init();

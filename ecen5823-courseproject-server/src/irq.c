@@ -19,9 +19,7 @@
 #include "irq.h"
 #include "gpio.h"
 #include "scheduler.h"
-
-#define INCLUDE_LOG_DEBUG (0)
-#include "log.h"
+#include "common.h"
 
 
 /*******************************************************************************

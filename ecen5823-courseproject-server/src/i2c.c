@@ -15,9 +15,7 @@
 #include <sl_i2cspm.h>
 
 #include "i2c.h"
-
-#define INCLUDE_LOG_DEBUG 1
-#include "log.h"
+#include "common.h"
 
 
 #define I2C0_SCL_port gpioPortC

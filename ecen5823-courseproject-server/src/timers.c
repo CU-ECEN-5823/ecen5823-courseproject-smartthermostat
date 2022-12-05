@@ -12,9 +12,7 @@
 #include "em_cmu.h"
 
 #include "timers.h"
-
-#define INCLUDE_LOG_DEBUG 1
-#include "src/log.h"
+#include "common.h"
 
 
 #define LETIMER_ON_TIME_MS    (0)
