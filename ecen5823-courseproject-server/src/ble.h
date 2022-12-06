@@ -21,7 +21,7 @@
 #include "sl_bluetooth.h"
 
 
-#define MAX_SESSION_SCANS 20
+#define MAX_SESSION_SCANS 50
 #define LCD_TIMEOUT_PERIOD 10
 
 

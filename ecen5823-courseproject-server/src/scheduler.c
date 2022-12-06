@@ -318,7 +318,8 @@ void temperatureStateMachine(sl_bt_msg_t *evt)
           uint16_t i2c_data16 = i2c_data[0] << 8 | i2c_data[1];
           int16_t temp_val = (int16_t)((i2c_data16 * 9) / (5 *256)) + 32;
 
-          update_current_temperature(temp_val);
+          if (temp_val != 33)
+            update_current_temperature(temp_val);
 
           i2c_data[0] = (uint8_t)LM75_REG_CONG_ADDR;
           i2c_data[1] = (uint8_t)LM75_INTERRUPT_MASK | LM75_SHUTDOWN_MASK;

@@ -563,9 +563,14 @@ void handle_bt_boot(void)
  ******************************************************************************/
 void handle_bt_scanned(sl_bt_msg_t *evt)
 {
-  sl_status_t scan_status;
+  sl_status_t status;
 
-  scan_status = sl_bt_scanner_stop();
+  status = sl_bt_scanner_stop();
+
+  if (status != SL_STATUS_OK) {
+      LOG_ERROR("Failed to stop scanning :: %u\n", status);
+      return;
+  }
 
   client_data_t *client = get_client_by_addr(evt->data.evt_scanner_scan_report.address);
 
@@ -585,13 +590,7 @@ void handle_bt_scanned(sl_bt_msg_t *evt)
         LOG_INFO("Succeeded to start connection\n");
   }
   else {
-      if (scan_status != SL_STATUS_OK) {
-          LOG_ERROR("Failed to stop scanning :: %u\n", scan_status);
-          return;
-      }
-      else {
-          start_bt_scan();
-      }
+      start_bt_scan();
   }
 
   update_lcd();
@@ -736,29 +735,24 @@ void handle_bt_bonding_failed(sl_bt_msg_t *evt)
  ******************************************************************************/
 void handle_gatt_server_characteristic_status(sl_bt_msg_t *evt)
 {
-  LOG_INFO("handle_gatt_server_characteristic_status\n");
   client_data_t *client = get_client_by_conn_handle(evt->data.evt_gatt_server_characteristic_status.connection);
 
   if (client == NULL)
     return;
 
-  client = get_client_by_type(CLIENT_TYPE_HEATER);
-
-  LOG_INFO("handle_gatt_server_characteristic_status\n");
-
-  if (evt->data.evt_gatt_server_characteristic_status.client_config_flags == 0x02) {
+  if (evt->data.evt_gatt_server_characteristic_status.status_flags == 0x01) {
       if (client->client_type == CLIENT_TYPE_AC)
         LOG_INFO("AC State Indications Enabled\n");
-      else if (client->client_type == CLIENT_TYPE_AC)
-        LOG_INFO("AC State Indications Enabled\n");
+      else if (client->client_type == CLIENT_TYPE_HEATER)
+        LOG_INFO("Heater State Indications Enabled\n");
 
       client->indications_enabled = 1;
   }
   else if (evt->data.evt_gatt_server_characteristic_status.client_config_flags == 0x00) {
       if (client->client_type == CLIENT_TYPE_AC)
         LOG_INFO("AC State Indications Disabled\n");
-      else if (client->client_type == CLIENT_TYPE_AC)
-        LOG_INFO("AC State Indications Disabled\n");
+      else if (client->client_type == CLIENT_TYPE_HEATER)
+        LOG_INFO("Heater State Indications Disabled\n");
 
       client->indications_enabled = 0;
   }
