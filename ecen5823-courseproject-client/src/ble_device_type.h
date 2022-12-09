@@ -33,7 +33,7 @@
  * Set to 1 to configure as a BLE client for Heater
  * Set to 0 to configure as a BLE client for AC
  */
-#define DEVICE_IS_HEATER 0
+#define DEVICE_IS_HEATER 1
 
 // Students:
 // For your Bluetooth Client implementations, starting with A7,

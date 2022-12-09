@@ -53,7 +53,6 @@
 #include "src/ble_device_type.h"
 #include "src/gpio.h"
 #include "src/lcd.h"
-#include "src/oscillators.h"
 #include "src/irq.h"
 #include "src/scheduler.h"
 #include "src/ble.h"
@@ -173,9 +172,8 @@ SL_WEAK void app_init(void)
   }
 
   gpioInit();
-  osc_init();
   IRQ_Init();
-  gpioRelayOff();
+  DEVICE_IS_HEATER ? gpioRelayOff() : gpioRelayOn();
 
 } // app_init()
 

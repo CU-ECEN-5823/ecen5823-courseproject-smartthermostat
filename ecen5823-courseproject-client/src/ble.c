@@ -2,7 +2,7 @@
  * @file  ble.c
  * @brief Function definitions for handling BT events
  *******************************************************************************
- * Editor: Oct 18, 2022, Amey More
+ * Editor: Dec 08, 2022, Amey More
  ******************************************************************************/
 
 #include "ble.h"
@@ -30,8 +30,11 @@
 
 sl_status_t sl_status;
 uint8_t gattCount=0;
+uint8_t temp;
 
-ble_client_data_t ble_client_data;
+ble_client_data_t ble_client_data = {
+    .stateTransition = Advertising
+};
 
 // BLE Structure pointer function
 ble_client_data_t *getbleData() {
@@ -39,6 +42,7 @@ ble_client_data_t *getbleData() {
 }   //    *getbleData
 
 void handle_bt_boot() {
+  temp = ble_client_data.stateTransition;
   displayInit();
   displayPrintf(DISPLAY_ROW_NAME, "%s",(DEVICE_IS_HEATER ? "HEATER" : "AC"));
   displayPrintf(DISPLAY_ROW_ASSIGNMENT, "Course Project");
@@ -245,7 +249,7 @@ void handle_bt_gatt_complete()  {
 void handle_bt_close()  {
   gattCount = 0;
   gpioLed0SetOff();
-  gpioLed1SetOff();
+  //gpioLed1SetOff();
   sl_status = sl_bt_advertiser_start(ble_client_data.advertisingHandle,
                                      sl_bt_advertiser_general_discoverable,
                                      sl_bt_advertiser_connectable_scannable
@@ -260,14 +264,19 @@ void handle_bt_close()  {
       LOG_ERROR("Advertiser Start Error 0x%x",sl_status);
   }
 
-//  sl_status = sl_bt_sm_delete_bondings();
-//  if(sl_status != SL_STATUS_OK) {
-//      LOG_ERROR("Delete Bondings Error 0x%x",sl_status);
-//  }
+  sl_status = sl_bt_sm_delete_bondings();
+  if(sl_status != SL_STATUS_OK) {
+      LOG_ERROR("Delete Bondings Error 0x%x",sl_status);
+  }
 }
 
 // To handle ble events
 void handle_ble_event(sl_bt_msg_t *evt) {
+
+  if(temp != ble_client_data.stateTransition)  {
+    LOG_INFO("State Transition = %d",ble_client_data.stateTransition);
+    temp = ble_client_data.stateTransition;
+  }
 
   switch (SL_BT_MSG_ID(evt->header)) {
 
@@ -340,24 +349,24 @@ void handle_ble_event(sl_bt_msg_t *evt) {
           if(evt->data.evt_gatt_characteristic_value.value.data[0] == 0x01) {
               displayPrintf(DISPLAY_ROW_9, "ON");
               gpioLed1SetOn();
-              gpioRelayOn();
+              DEVICE_IS_HEATER ? gpioRelayOn() : gpioRelayOff();
           }
           if(evt->data.evt_gatt_characteristic_value.value.data[0] == 0x00) {
               displayPrintf(DISPLAY_ROW_9, "OFF");
               gpioLed1SetOff();
-              gpioRelayOff();
+              DEVICE_IS_HEATER ? gpioRelayOff() : gpioRelayOn();
           }
       }
       if(evt->data.evt_gatt_characteristic_value.characteristic == ble_client_data.ACCharacteristicsHandle)  {
           if(evt->data.evt_gatt_characteristic_value.value.data[0] == 0x01) {
               displayPrintf(DISPLAY_ROW_9, "ON");
               gpioLed1SetOn();
-              gpioRelayOn();
+              DEVICE_IS_HEATER ? gpioRelayOn() : gpioRelayOff();
           }
           if(evt->data.evt_gatt_characteristic_value.value.data[0] == 0x00) {
               displayPrintf(DISPLAY_ROW_9, "OFF");
               gpioLed1SetOff();
-              gpioRelayOff();
+              DEVICE_IS_HEATER ? gpioRelayOff() : gpioRelayOn();
           }
       }
       break;

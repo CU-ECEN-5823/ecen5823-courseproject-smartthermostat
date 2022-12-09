@@ -1,17 +1,10 @@
 /*******************************************************************************
- * @file        scheduler.h
- * @brief       Schedule header file
- * @author      Amey More, Amey.More@colorado.edu
- * @date        Oct 24, 2022
- *
- * @institution University of Colorado Boulder (UCB)
- * @course      ECEN 5823-001: IoT Embedded Firmware (Fall 2022)
- * @instructor  David Sluiter
- *
- * @assignment  ecen5823-assignment9-ameyflash
- * @due         Oct 28, 2022
- *
+ * @file  scheduler.h
+ * @brief Header file
+ *******************************************************************************
+ * Editor: Dec 08, 2022, Amey More
  ******************************************************************************/
+
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 

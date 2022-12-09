@@ -1,21 +1,9 @@
-/*
-  gpio.c
- 
-   Created on: Dec 12, 2018
-       Author: Dan Walkes
-   Updated by Dave Sluiter Dec 31, 2020. Minor edits with #defines.
-
-   March 17
-   Dave Sluiter: Use this file to define functions that set up or control GPIOs.
-
- */
-
-
-// *****************************************************************************
-// Students:
-// We will be creating additional functions that configure and manipulate GPIOs.
-// For any new GPIO function you create, place that function in this file.
-// *****************************************************************************
+/*******************************************************************************
+ * @file  gpio.c
+ * @brief Function definitions for GPIO
+ *******************************************************************************
+ * Editor: Dec 08, 2022, Amey More
+ ******************************************************************************/
 
 #include <stdbool.h>
 #include "em_gpio.h"
